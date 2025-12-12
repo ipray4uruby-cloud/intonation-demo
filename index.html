@@ -1,231 +1,91 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>실시간 억양(F0) 곡선 - Analyser 버전</title>
-  <style>
-    :root { --fg:#222; }
-    body { font-family: system-ui, sans-serif; margin:16px; color:var(--fg);}
-    h1 { font-size: 18px; margin-bottom: 8px;}
-    #c { width:100%; height:260px; border:1px solid #ddd; border-radius:8px;}
-    .row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; align-items:center; }
-    button { padding:8px 12px; border:1px solid #ccc; border-radius:8px; cursor:pointer; background:#f7f7f7;}
-    button:disabled { opacity:0.4; cursor:default;}
-    input[type=number]{width:90px;}
-    small { color:#666; }
-  </style>
-</head>
-<body>
-  <h1>🎤 실시간 억양(F0) 곡선 (간단 버전)</h1>
-  <div class="row">
-    <button id="btn-start">Start</button>
-    <button id="btn-stop" disabled>Stop</button>
-    <span id="now">F0: -- Hz</span>
-  </div>
-  <div class="row">
-    <label>최저 F0(Hz):
-      <input type="number" id="floor" value="75" min="20" max="300">
-    </label>
-    <label>최고 F0(Hz):
-      <input type="number" id="ceil" value="400" min="100" max="800">
-    </label>
-    <small>※ 남성 화자면 50–300, 여성 화자면 75–500 정도로 바꿔 보세요.</small>
-  </div>
-  <canvas id="c" width="1232" height="260"></canvas>
-  <p><small>실시간 테스트용 미니 버전입니다. 먼저 PC 크롬에서 테스트해 보세요.</small></p>
-
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>실시간 억양 곡선 데모</title>
+<style>
+  :root { --fg:#222; }
+  body { font-family: system-ui, sans-serif; margin:16px; color:var(--fg);}
+  h1 { font-size: 18px; margin-bottom: 8px;}
+  #c { width:100%; height:260px; border:1px solid #ddd; border-radius:8px;}
+  .row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; }
+  button { padding:8px 12px; border:1px solid #ccc; border-radius:8px; cursor:pointer;}
+  input[type=number]{width:90px;}
+</style>
+<h1>🎤 실시간 억양(F0) 곡선</h1>
+<div class="row">
+  <button id="start">Start</button>
+  <button id="stop" disabled>Stop</button>
+  <label>Floor(Hz)<input id="floor" type="number" value="75" min="40" max="200"></label>
+  <label>Ceiling(Hz)<input id="ceil" type="number" value="400" min="200" max="800"></label>
+</div>
+<canvas id="c" width="1200" height="260"></canvas>
+<div id="now">F0: -- Hz</div>
 <script>
-  // ===== Pitch 계산: 자동상관(auto-correlation) =====
-  function autoCorrelate(buf, sampleRate, floor, ceil) {
-    const N = buf.length;
-    if (!N) return 0;
-
-    // 평균 제거 + Hanning window
-    let mean = 0;
-    for (let i = 0; i < N; i++) mean += buf[i];
-    mean /= N;
-    for (let i = 0; i < N; i++) {
-      buf[i] = (buf[i] - mean) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
-    }
-
-    // 에너지(RMS)로 무성/저에너지 구간 제거
-    let rms = 0;
-    for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
-    rms = Math.sqrt(rms / N);
-    if (rms < 0.002) return 0; // 너무 작으면 0으로 처리 (노이즈/무성)
-
-    const maxLag = Math.floor(sampleRate / floor);
-    const minLag = Math.floor(sampleRate / ceil);
-
-    function xcorr(lag) {
-      let s = 0;
-      for (let i = 0; i < N - lag; i++) s += buf[i] * buf[i + lag];
-      return s / (N - lag);
-    }
-
-    let bestLag = -1, best = 0;
-    for (let lag = minLag; lag <= maxLag; lag++) {
-      const c = xcorr(lag);
-      if (c > best) { best = c; bestLag = lag; }
-    }
-    if (bestLag < 0 || best < 0.08) return 0; // 상관계수 너무 작으면 pitch 없음
-
-    const c1 = xcorr(bestLag - 1), c2 = xcorr(bestLag), c3 = xcorr(bestLag + 1);
-    const denom = (c1 - 2 * c2 + c3);
-    let shift = 0;
-    if (Math.abs(denom) > 1e-6) shift = 0.5 * (c1 - c3) / denom;
-
-    const f0 = sampleRate / (bestLag + shift);
-    return f0;
+let audioCtx, source, processor, stream, animId;
+const c=document.getElementById('c'), g=c.getContext('2d');
+const points=[], maxPoints=1000;
+function autoCorrelate(buf,sr,floor=75,ceil=400){
+  const N=buf.length;
+  let mean=0; for(let i=0;i<N;i++) mean+=buf[i]; mean/=N;
+  for(let i=0;i<N;i++) buf[i]=(buf[i]-mean)*(0.5-0.5*Math.cos(2*Math.PI*i/(N-1)));
+  const maxLag=Math.floor(sr/floor), minLag=Math.floor(sr/ceil);
+  let rms=0; for(let i=0;i<N;i++) rms+=buf[i]*buf[i]; rms=Math.sqrt(rms/N);
+  if(rms<0.01) return 0;
+  const xcorr=(lag)=>{let s=0;for(let i=0;i<N-lag;i++) s+=buf[i]*buf[i+lag];return s/(N-lag);}
+  let bestLag=-1,best=0;
+  for(let lag=minLag;lag<=maxLag;lag++){const c=xcorr(lag);if(c>best){best=c;bestLag=lag;}}
+  if(bestLag<0||best<0.1) return 0;
+  const c1=xcorr(bestLag-1), c2=xcorr(bestLag), c3=xcorr(bestLag+1);
+  const denom=(c1-2*c2+c3); let shift=0;
+  if(Math.abs(denom)>1e-6) shift=0.5*(c1-c3)/denom;
+  return sr/(bestLag+shift);
+}
+function draw(){
+  g.clearRect(0,0,c.width,c.height);
+  g.strokeStyle="#eee"; g.beginPath(); g.moveTo(48,16); g.lineTo(48,244); g.lineTo(1184,244); g.stroke();
+  const floor=+document.getElementById('floor').value, ceil=+document.getElementById('ceil').value;
+  [floor,(floor+ceil)/2,ceil].forEach(t=>{
+    const y=mapF0(t,floor,ceil);
+    g.strokeStyle="#eee"; g.beginPath(); g.moveTo(48,y); g.lineTo(1184,y); g.stroke();
+    g.fillStyle="#666"; g.font="12px system-ui"; g.fillText(Math.round(t)+" Hz",8,y-2);
+  });
+  g.strokeStyle="#0a74da"; g.beginPath();
+  const visible=points.slice(-maxPoints); let started=false;
+  for(let i=0;i<visible.length;i++){
+    const f0=visible[i]; if(f0<=0){started=false;continue;}
+    const x=48+(i/Math.max(visible.length-1,1))*1136;
+    const y=mapF0(f0,floor,ceil);
+    if(!started){g.moveTo(x,y);started=true;}else{g.lineTo(x,y);}
   }
-
-  // ===== 캔버스 세팅 =====
-  const canvas = document.getElementById('c');
-  const g = canvas.getContext('2d');
-  const maxPoints = 1000;
-  const points = [];  // 최근 F0 히스토리
-
-  function getFloor() {
-    return +document.getElementById('floor').value || 75;
-  }
-  function getCeil() {
-    return +document.getElementById('ceil').value || 400;
-  }
-
-  function mapF0(f, fmin, fmax) {
-    const clamped = Math.max(fmin, Math.min(fmax, f));
-    const r = (clamped - fmin) / (fmax - fmin);
-    // y: 위(높은 F0) → 아래(낮은 F0)
-    return 244 - r * 220;
-  }
-
-  function drawFrame() {
-    g.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 축/틀
-    g.strokeStyle = "#eee";
-    g.beginPath();
-    g.moveTo(48, 16);
-    g.lineTo(48, 244);
-    g.lineTo(1184, 244);
-    g.stroke();
-
-    const floor = getFloor();
-    const ceil = getCeil();
-    const ticks = [floor, (floor + ceil) / 2, ceil];
-
-    ticks.forEach(t => {
-      const y = mapF0(t, floor, ceil);
-      g.strokeStyle = "#eee";
-      g.beginPath();
-      g.moveTo(48, y);
-      g.lineTo(1184, y);
-      g.stroke();
-      g.fillStyle = "#666";
-      g.font = "12px system-ui";
-      g.fillText(Math.round(t) + " Hz", 8, y - 2);
-    });
-
-    // F0 곡선
-    const visible = points.slice(-maxPoints);
-    if (!visible.length) return;
-
-    g.strokeStyle = "#0a74da";
-    g.lineWidth = 2;
-    g.beginPath();
-    let started = false;
-    for (let i = 0; i < visible.length; i++) {
-      const f0 = visible[i];
-      if (f0 <= 0) { started = false; continue; } // 무성구간은 끊어서 그림
-      const x = 48 + (i / Math.max(visible.length - 1, 1)) * 1136;
-      const y = mapF0(f0, floor, ceil);
-      if (!started) { g.moveTo(x, y); started = true; }
-      else { g.lineTo(x, y); }
-    }
-    g.stroke();
-    g.lineWidth = 1;
-  }
-
-  // ===== 오디오/Analyser 세팅 =====
-  let audioCtx = null;
-  let analyser = null;
-  let stream = null;
-  let dataArray = null;
-  let animId = null;
-
-  const nowEl = document.getElementById('now');
-  const btnStart = document.getElementById('btn-start');
-  const btnStop = document.getElementById('btn-stop');
-
-  async function start() {
-    if (audioCtx) return; // 이미 실행 중
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) {
-      alert("마이크 권한이 필요합니다.");
-      console.error(e);
-      return;
-    }
-
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
-    }
-
-    const source = audioCtx.createMediaStreamSource(stream);
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
-
-    dataArray = new Float32Array(analyser.fftSize);
-
-    function loop() {
-      animId = requestAnimationFrame(loop);
-      analyser.getFloatTimeDomainData(dataArray);
-      const floor = getFloor();
-      const ceil = getCeil();
-      const buf = new Float32Array(dataArray); // autoCorrelate 안에서 수정하므로 복사
-      const f0 = autoCorrelate(buf, audioCtx.sampleRate, floor, ceil);
-      points.push(f0 > 0 ? f0 : 0);
-      if (points.length > 5000) points.shift();
-      nowEl.textContent = "F0: " + (f0 ? Math.round(f0) + " Hz" : "-- Hz");
-      drawFrame();
-    }
-
-    loop();
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-  }
-
-  function stop() {
-    if (animId) {
-      cancelAnimationFrame(animId);
-      animId = null;
-    }
-    if (analyser) {
-      analyser.disconnect();
-      analyser = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    if (audioCtx) {
-      audioCtx.close();
-      audioCtx = null;
-    }
-    nowEl.textContent = "F0: -- Hz";
-    btnStart.disabled = false;
-    btnStop.disabled = true;
-  }
-
-  btnStart.addEventListener('click', start);
-  btnStop.addEventListener('click', stop);
-
-  // 처음 로딩 시 빈 축 그리기
-  drawFrame();
+  g.stroke();
+  animId=requestAnimationFrame(draw);
+  function mapF0(f,fmin,fmax){const clamped=Math.max(fmin,Math.min(fmax,f));const r=(clamped-fmin)/(fmax-fmin);return 244 - r*220;}
+}
+async function start(){
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});}
+  catch(e){alert("마이크 권한 필요!");return;}
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  source=audioCtx.createMediaStreamSource(stream);
+  processor=audioCtx.createScriptProcessor(2048,1,1);
+  source.connect(processor); processor.connect(audioCtx.destination);
+  processor.onaudioprocess=(e)=>{
+    const inbuf=e.inputBuffer.getChannelData(0);
+    const f0=autoCorrelate(new Float32Array(inbuf),audioCtx.sampleRate,+floor.value,+ceil.value);
+    points.push(f0>0?f0:0); if(points.length>5000) points.shift();
+    document.getElementById('now').textContent="F0: "+(f0?Math.round(f0):"--")+" Hz";
+  };
+  draw(); startBtn.disabled=true; stopBtn.disabled=false;
+}
+function stop(){
+  if(processor){processor.disconnect();processor.onaudioprocess=null;}
+  if(source) source.disconnect();
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  if(audioCtx){audioCtx.close();audioCtx=null;}
+  if(animId){cancelAnimationFrame(animId);animId=null;}
+  startBtn.disabled=false; stopBtn.disabled=true;
+}
+const startBtn=document.getElementById('start'), stopBtn=document.getElementById('stop');
+startBtn.onclick=start; stopBtn.onclick=stop;
 </script>
-</body>
 </html>
