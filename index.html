@@ -52,7 +52,7 @@ function f0_from_frame(buf, sr, floor, ceil){
   let mean=0; for(let i=0;i<N;i++) mean += buf[i]; mean/=N;
   let rms=0; for(let i=0;i<N;i++){ const v=(buf[i]-mean)*ACF_WINDOW[i%ACF_WINDOW.length]; rms+=v*v; buf[i]=v; }
   rms = Math.sqrt(rms/N);
-  if(rms < 0.005) return 0;
+  if(rms < 0.0005) return 0;
 
   const minLag = Math.floor(sr/ceil);
   const maxLag = Math.floor(sr/floor);
@@ -66,7 +66,7 @@ function f0_from_frame(buf, sr, floor, ceil){
     const nccf = (denom1>1e-9)? s/Math.sqrt(denom0*denom1) : 0;
     if(nccf > best){ best=nccf; bestLag=lag; }
   }
-  if(bestLag<0 || best<0.3) return 0;
+  if(bestLag<0 || best<0.15) return 0;
 
   // parabolic interpolation around bestLag
   const ac=(lag)=>{
@@ -200,3 +200,4 @@ resetBtn.onclick = ()=>{
 drawAxes(+floor.value, +ceil.value);
 </script>
 </html>
+
