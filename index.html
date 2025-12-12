@@ -3,53 +3,74 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>한국어 억양 웹앱 (데모)</title>
+  <title>한국어 억양 웹앱 데모</title>
   <style>
     :root {
       --fg: #222;
       --blue: #0a74da;
       --red: #e65b5b;
       --gray: #888888;
+      --border: #e5e7eb;
+      --bg-soft: #f9fafb;
     }
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 16px;
       color: var(--fg);
+      background: #ffffff;
     }
     h1 {
-      font-size: 22px;
-      margin: 4px 0 12px;
+      font-size: 20px;
+      margin: 0 0 8px;
     }
     h2 {
-      font-size: 18px;
+      font-size: 16px;
       margin: 16px 0 8px;
     }
     h3 {
-      font-size: 15px;
+      font-size: 14px;
       margin: 8px 0 4px;
     }
-    #c {
-      width: 100%;
-      height: 260px;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      margin: 8px 0 6px;
-      background: #fff;
+    p {
+      font-size: 13px;
+      margin: 4px 0;
+      line-height: 1.4;
     }
-    .row {
+    .range-box {
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-soft);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .range-row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin: 6px 0;
       align-items: center;
+      margin-top: 4px;
+    }
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+    input[type="number"] {
+      width: 80px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
     }
     .tabs {
       display: inline-flex;
       border-radius: 999px;
       background: #f3f4f6;
       padding: 3px;
-      margin-bottom: 8px;
+      margin: 4px 0 8px;
     }
     .tab-btn {
       border: none;
@@ -60,139 +81,133 @@
       font-size: 14px;
     }
     .tab-btn.active {
-      background: #2563eb;
-      color: #fff;
+      background: var(--blue);
+      color: #ffffff;
+    }
+    .tab-panel.hidden {
+      display: none;
+    }
+    canvas {
+      width: 100%;
+      height: 260px;
+      border-radius: 12px;
+      border: 1px solid #dddddd;
+      background: #ffffff;
+      margin: 6px 0;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 6px 0;
     }
     button {
       padding: 6px 12px;
       border-radius: 999px;
       border: 1px solid #d1d5db;
-      background: #fff;
+      background: #ffffff;
       cursor: pointer;
       font-size: 14px;
+    }
+    button.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #ffffff;
     }
     button:disabled {
       opacity: 0.5;
       cursor: default;
     }
-    button.primary {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: #fff;
-    }
-    input[type=number] {
-      width: 80px;
-      padding: 4px 6px;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      font-size: 14px;
-    }
-    label {
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
     .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 13px;
-      margin-top: 4px;
+      font-size: 12px;
+      color: #4b5563;
+      margin-top: 2px;
     }
-    .legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    .legend span {
+      margin-right: 10px;
     }
     .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
       display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      margin-right: 4px;
     }
     .dot.live { background: var(--blue); }
     .dot.model { background: var(--gray); }
     .dot.user { background: var(--red); }
 
-    .hidden { display: none; }
-
     .sentence-group {
       border-radius: 12px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border);
       padding: 8px 10px;
       margin-bottom: 8px;
+      background: #ffffff;
     }
-    .sentence-group .sent-btn {
+    .sent-btn {
       margin: 2px 4px 2px 0;
-      font-size: 13px;
       padding: 4px 10px;
+      font-size: 13px;
     }
     .sent-btn.active {
       background: #111827;
-      color: #fff;
+      color: #ffffff;
       border-color: #111827;
     }
-
-    p {
-      font-size: 13px;
-      margin: 4px 0;
-      line-height: 1.4;
-    }
-
     @media (max-width: 600px) {
-      #c { height: 220px; }
-      h1 { font-size: 20px; }
+      body { margin: 12px; }
+      canvas { height: 220px; }
     }
   </style>
 </head>
 <body>
-  <h1>🎤 한국어 억양 웹앱 (데모)</h1>
+  <h1>🎤 한국어 억양 웹앱 (실시간 + 연습)</h1>
 
-  <!-- 탭 -->
+  <div class="range-box">
+    <div>F0 범위 설정 (두 모드 공통)</div>
+    <div class="range-row">
+      <label>Floor(Hz)
+        <input id="floor" type="number" value="75" min="40" max="300" />
+      </label>
+      <label>Ceiling(Hz)
+        <input id="ceil" type="number" value="400" min="150" max="800" />
+      </label>
+    </div>
+  </div>
+
   <div class="tabs">
     <button class="tab-btn active" data-tab="live">실시간 F0 보기</button>
     <button class="tab-btn" data-tab="practice">문장 연습 모드</button>
   </div>
 
-  <!-- 공통 그래프 -->
-  <canvas id="c" width="1232" height="260"></canvas>
-
-  <div class="legend">
-    <span class="legend-item"><span class="dot live"></span> 실시간 F0 (Start/Stop)</span>
-    <span class="legend-item"><span class="dot model"></span> 모범 발화 F0 (연습 모드)</span>
-    <span class="legend-item"><span class="dot user"></span> 내 발화 F0 (연습 모드)</span>
-  </div>
-
-  <div class="row">
-    <span id="now">현재 F0: -- Hz</span>
-  </div>
-  <div class="row">
-    <label>Floor(Hz)
-      <input id="floor" type="number" value="75" min="30" max="300" />
-    </label>
-    <label>Ceiling(Hz)
-      <input id="ceil" type="number" value="400" min="150" max="800" />
-    </label>
-  </div>
-
-  <!-- 실시간 탭 -->
-  <div id="tab-live">
-    <h2>① 실시간 억양(F0) 곡선 보기</h2>
-    <div class="row">
-      <button id="start" class="primary">Start</button>
-      <button id="stop" disabled>Stop</button>
+  <!-- 실시간 모드 -->
+  <div id="tab-live" class="tab-panel">
+    <h2>① 실시간 억양(F0) 곡선</h2>
+    <canvas id="liveCanvas" width="1200" height="260"></canvas>
+    <div class="legend">
+      <span><span class="dot live"></span>실시간 F0</span>
     </div>
-    <p>
-      Start 버튼을 누르고 브라우저의 마이크 권한을 허용한 뒤 말해 보세요.  
-      파란 선이 말하는 동안의 실시간 F0 곡선입니다.
-    </p>
+    <div class="row">
+      <span id="liveNow">현재 F0: -- Hz</span>
+    </div>
+    <div class="row">
+      <button id="liveStart" class="primary">Start</button>
+      <button id="liveStop" disabled>Stop</button>
+    </div>
+    <p>Start 버튼을 누르고 브라우저의 마이크 권한을 허용한 뒤 말을 해 보세요. 파란 선으로 실시간 F0 곡선이 표시됩니다.</p>
   </div>
 
-  <!-- 문장 연습 탭 -->
-  <div id="tab-practice" class="hidden">
-    <h2>② 문장 연습 모드</h2>
-    <p>연습할 문장(의문사 + 판정/설명)을 선택한 뒤 모범 발화 듣기 → 내 발화 녹음 순서로 연습합니다.</p>
+  <!-- 연습 모드 -->
+  <div id="tab-practice" class="tab-panel hidden">
+    <h2>② 문장 연습 모드 (모범 억양 vs 내 억양)</h2>
+    <canvas id="pracCanvas" width="1200" height="260"></canvas>
+    <div class="legend">
+      <span><span class="dot model"></span>모범 발화 F0</span>
+      <span><span class="dot user"></span>내 발화 F0</span>
+    </div>
+
+    <p>의문사를 선택하고, 판정 의문문(Y/N)과 설명 의문문(Wh)의 억양을 비교해 보세요.</p>
 
     <div class="sentence-group">
       <h3>누구</h3>
@@ -219,17 +234,17 @@
       <button id="btn-play-model">모범 발화 듣기</button>
       <button id="btn-prac-start" class="primary">내 발화 녹음 시작</button>
       <button id="btn-prac-stop" disabled>녹음 종료</button>
+      <button id="btn-download-f0">내 F0 데이터 저장 (CSV)</button>
     </div>
     <p>
-      회색 선: 모범 발화 F0 / 빨간 선: 내 발화 F0 (연습 결과)<br>
-      여러 번 녹음하면 최근 연습 결과만 빨간 선으로 남습니다.
+      모범 발화 파일은 <code>/audio</code> 폴더에
+      <code>nugu_yn.wav, nugu_wh.wav, eodi_yn.wav, eodi_wh.wav, eonje_yn.wav, eonje_wh.wav, mwo_yn.wav, mwo_wh.wav</code>
+      이름으로 넣어 두어야 합니다.
     </p>
   </div>
 
   <script>
-    // =========================
-    //  탭 전환
-    // =========================
+    // ===== 탭 전환 =====
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanels = {
       live: document.getElementById('tab-live'),
@@ -246,21 +261,27 @@
       });
     });
 
-    // =========================
-    //  공통: F0 계산 (ver1.0과 동일)
-    // =========================
-    function autoCorrelate(buf, sr, floor = 75, ceil = 400) {
+    // ===== 공통: floor/ceil =====
+    const floorInput = document.getElementById('floor');
+    const ceilInput  = document.getElementById('ceil');
+    function getFloor() {
+      const v = Number(floorInput.value);
+      return v > 0 ? v : 75;
+    }
+    function getCeil() {
+      const v = Number(ceilInput.value);
+      return v > 0 ? v : 400;
+    }
+
+    // ===== 공통: F0 계산 (v1.0 기반) =====
+    function autoCorrelate(buf, sr, floor, ceil) {
       const N = buf.length;
       let mean = 0;
       for (let i = 0; i < N; i++) mean += buf[i];
       mean /= N;
-
-      // 평균 제거 + 해닝 윈도우
       for (let i = 0; i < N; i++) {
         buf[i] = (buf[i] - mean) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
       }
-
-      // 에너지 너무 작으면 0 반환
       let rms = 0;
       for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
       rms = Math.sqrt(rms / N);
@@ -278,180 +299,262 @@
       let bestLag = -1, best = 0;
       for (let lag = minLag; lag <= maxLag; lag++) {
         const c = xcorr(lag);
-        if (c > best) { best = c; bestLag = lag; }
+        if (c > best) {
+          best = c;
+          bestLag = lag;
+        }
       }
       if (bestLag < 0 || best < 0.1) return 0;
 
-      const c1 = xcorr(bestLag - 1), c2 = xcorr(bestLag), c3 = xcorr(bestLag + 1);
+      const c1 = xcorr(bestLag - 1);
+      const c2 = xcorr(bestLag);
+      const c3 = xcorr(bestLag + 1);
       const denom = (c1 - 2 * c2 + c3);
       let shift = 0;
-      if (Math.abs(denom) > 1e-6) shift = 0.5 * (c1 - c3) / denom;
+      if (Math.abs(denom) > 1e-6) {
+        shift = 0.5 * (c1 - c3) / denom;
+      }
       return sr / (bestLag + shift);
     }
 
-    // =========================
-    //  공통: 그래프 그리기
-    // =========================
-    const c = document.getElementById('c');
-    const g = c.getContext('2d');
+    // ===== 실시간 모드 (v1.0 로직 분리) =====
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveCtx    = liveCanvas.getContext('2d');
+    const livePoints = [];
+    const liveMaxPoints = 1000;
+    let liveAudioCtx = null;
+    let liveSource   = null;
+    let liveProcessor = null;
+    let liveStream   = null;
+    let liveAnimId   = null;
 
-    const livePoints = [];   // 파란선 (실시간)
-    const modelPoints = [];  // 회색선 (모범 발화)
-    const userPoints = [];   // 빨간선 (내 발화)
-    const maxPoints = 5000;
+    const liveNowEl   = document.getElementById('liveNow');
+    const liveStartBtn = document.getElementById('liveStart');
+    const liveStopBtn  = document.getElementById('liveStop');
 
-    function getFloor() {
-      const v = +document.getElementById('floor').value;
-      return v > 0 ? v : 75;
-    }
-    function getCeil() {
-      const v = +document.getElementById('ceil').value;
-      return v > 0 ? v : 400;
-    }
-
-    function mapF0(f, fmin, fmax) {
+    function mapF0ToYLive(f, fmin, fmax) {
       const clamped = Math.max(fmin, Math.min(fmax, f));
       const r = (clamped - fmin) / (fmax - fmin);
-      // 캔버스 안에서 위(고음) ~ 아래(저음) 위치
       return 244 - r * 220;
     }
 
-    function drawSeries(points, color, floor, ceil) {
-      const visible = points.slice(-maxPoints);
-      if (!visible.length) return;
-      g.strokeStyle = color;
-      g.lineWidth = 2;
-      g.beginPath();
-      let started = false;
-      for (let i = 0; i < visible.length; i++) {
-        const f0 = visible[i];
-        if (f0 <= 0) { // 무음 구간은 선 끊기
-          started = false;
-          continue;
-        }
-        const x = 48 + (i / Math.max(visible.length - 1, 1)) * 1136;
-        const y = mapF0(f0, floor, ceil);
-        if (!started) { g.moveTo(x, y); started = true; }
-        else { g.lineTo(x, y); }
-      }
-      g.stroke();
-      g.lineWidth = 1;
-    }
-
-    function draw() {
-      g.clearRect(0, 0, c.width, c.height);
-
+    function drawLive() {
+      liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
       const floor = getFloor();
-      const ceil = getCeil();
+      const ceil  = getCeil();
 
       // 틀
-      g.strokeStyle = "#eee";
-      g.beginPath();
-      g.moveTo(48, 16);
-      g.lineTo(48, 244);
-      g.lineTo(1184, 244);
-      g.stroke();
+      liveCtx.strokeStyle = '#eeeeee';
+      liveCtx.beginPath();
+      liveCtx.moveTo(48, 16);
+      liveCtx.lineTo(48, 244);
+      liveCtx.lineTo(1184, 244);
+      liveCtx.stroke();
 
-      // 기준선 (floor / mid / ceil)
+      // 기준선
       [floor, (floor + ceil) / 2, ceil].forEach(t => {
-        const y = mapF0(t, floor, ceil);
-        g.strokeStyle = "#eee";
-        g.beginPath();
-        g.moveTo(48, y);
-        g.lineTo(1184, y);
-        g.stroke();
-        g.fillStyle = "#666";
-        g.font = "12px system-ui";
-        g.fillText(Math.round(t) + " Hz", 8, y - 2);
+        const y = mapF0ToYLive(t, floor, ceil);
+        liveCtx.strokeStyle = '#eeeeee';
+        liveCtx.beginPath();
+        liveCtx.moveTo(48, y);
+        liveCtx.lineTo(1184, y);
+        liveCtx.stroke();
+        liveCtx.fillStyle = '#666666';
+        liveCtx.font = '12px system-ui';
+        liveCtx.fillText(Math.round(t) + ' Hz', 8, y - 2);
       });
 
-      // 세 시리즈 그리기
-      drawSeries(modelPoints, "#888888", floor, ceil);
-      drawSeries(userPoints, "#e65b5b", floor, ceil);
-      drawSeries(livePoints, "#0a74da", floor, ceil);
+      // F0 곡선
+      const visible = livePoints.slice(-liveMaxPoints);
+      if (visible.length > 0) {
+        liveCtx.strokeStyle = '#0a74da';
+        liveCtx.lineWidth = 2;
+        liveCtx.beginPath();
+        let started = false;
+        for (let i = 0; i < visible.length; i++) {
+          const f0 = visible[i];
+          if (f0 <= 0) {
+            started = false;
+            continue;
+          }
+          const x = 48 + (i / Math.max(visible.length - 1, 1)) * 1136;
+          const y = mapF0ToYLive(f0, floor, ceil);
+          if (!started) {
+            liveCtx.moveTo(x, y);
+            started = true;
+          } else {
+            liveCtx.lineTo(x, y);
+          }
+        }
+        liveCtx.stroke();
+        liveCtx.lineWidth = 1;
+      }
 
-      requestAnimationFrame(draw);
+      liveAnimId = requestAnimationFrame(drawLive);
     }
-    requestAnimationFrame(draw);
-
-    // =========================
-    //  실시간 F0 모드
-    // =========================
-    let audioCtxLive = null;
-    let sourceLive = null;
-    let processorLive = null;
-    let streamLive = null;
-
-    const startBtn = document.getElementById('start');
-    const stopBtn  = document.getElementById('stop');
-    const nowEl    = document.getElementById('now');
 
     async function startLive() {
-      if (audioCtxLive) return; // 이미 실행 중
+      if (liveAudioCtx) return;
       try {
-        streamLive = await navigator.mediaDevices.getUserMedia({ audio: true });
+        liveStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (e) {
-        alert("마이크 권한이 필요합니다.");
+        alert('마이크 권한이 필요합니다.');
         console.error(e);
         return;
       }
-
-      audioCtxLive = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtxLive.state === "suspended") {
-        await audioCtxLive.resume();
+      liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (liveAudioCtx.state === 'suspended') {
+        await liveAudioCtx.resume();
       }
+      liveSource = liveAudioCtx.createMediaStreamSource(liveStream);
+      liveProcessor = liveAudioCtx.createScriptProcessor(2048, 1, 1);
 
-      sourceLive = audioCtxLive.createMediaStreamSource(streamLive);
-      processorLive = audioCtxLive.createScriptProcessor(2048, 1, 1);
+      liveSource.connect(liveProcessor);
+      liveProcessor.connect(liveAudioCtx.destination);
 
-      sourceLive.connect(processorLive);
-      processorLive.connect(audioCtxLive.destination);
-
-      processorLive.onaudioprocess = (e) => {
+      liveProcessor.onaudioprocess = (e) => {
         const inbuf = e.inputBuffer.getChannelData(0);
-        const tmp = new Float32Array(inbuf); // 복사본
-        const f0 = autoCorrelate(tmp, audioCtxLive.sampleRate, getFloor(), getCeil());
-
+        const tmp = new Float32Array(inbuf);
+        const f0 = autoCorrelate(tmp, liveAudioCtx.sampleRate, getFloor(), getCeil());
         livePoints.push(f0 > 0 ? f0 : 0);
-        if (livePoints.length > maxPoints) livePoints.shift();
-
-        nowEl.textContent = "현재 F0: " + (f0 > 0 ? Math.round(f0) + " Hz" : "-- Hz");
+        if (livePoints.length > liveMaxPoints) {
+          livePoints.shift();
+        }
+        if (f0 > 0) {
+          liveNowEl.textContent = '현재 F0: ' + Math.round(f0) + ' Hz';
+        } else {
+          liveNowEl.textContent = '현재 F0: -- Hz';
+        }
       };
 
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
+      livePoints.length = 0;
+      drawLive();
+      liveStartBtn.disabled = true;
+      liveStopBtn.disabled  = false;
     }
 
     function stopLive() {
-      if (processorLive) {
-        processorLive.disconnect();
-        processorLive.onaudioprocess = null;
-        processorLive = null;
+      if (liveProcessor) {
+        liveProcessor.disconnect();
+        liveProcessor.onaudioprocess = null;
+        liveProcessor = null;
       }
-      if (sourceLive) {
-        sourceLive.disconnect();
-        sourceLive = null;
+      if (liveSource) {
+        liveSource.disconnect();
+        liveSource = null;
       }
-      if (streamLive) {
-        streamLive.getTracks().forEach(t => t.stop());
-        streamLive = null;
+      if (liveStream) {
+        liveStream.getTracks().forEach(t => t.stop());
+        liveStream = null;
       }
-      if (audioCtxLive) {
-        audioCtxLive.close();
-        audioCtxLive = null;
+      if (liveAudioCtx) {
+        liveAudioCtx.close();
+        liveAudioCtx = null;
       }
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-      nowEl.textContent = "현재 F0: -- Hz";
-      livePoints.length = 0; // 화면도 초기화
+      if (liveAnimId) {
+        cancelAnimationFrame(liveAnimId);
+        liveAnimId = null;
+      }
+      liveStartBtn.disabled = false;
+      liveStopBtn.disabled  = true;
+      liveNowEl.textContent = '현재 F0: -- Hz';
     }
 
-    startBtn.addEventListener('click', startLive);
-    stopBtn.addEventListener('click', stopLive);
+    liveStartBtn.addEventListener('click', startLive);
+    liveStopBtn.addEventListener('click', stopLive);
 
-    // =========================
-    //  문장 연습 모드
-    // =========================
+    // ===== 연습 모드: 그래프 & 데이터 =====
+    const pracCanvas = document.getElementById('pracCanvas');
+    const pracCtx    = pracCanvas.getContext('2d');
+    const modelF0 = [];
+    const userF0  = [];
+
+    function mapF0ToYPrac(f, fmin, fmax) {
+      const clamped = Math.max(fmin, Math.min(fmax, f));
+      const r = (clamped - fmin) / (fmax - fmin);
+      return 244 - r * 220;
+    }
+
+    function drawPractice() {
+      pracCtx.clearRect(0, 0, pracCanvas.width, pracCanvas.height);
+      const floor = getFloor();
+      const ceil  = getCeil();
+
+      // 틀
+      pracCtx.strokeStyle = '#eeeeee';
+      pracCtx.beginPath();
+      pracCtx.moveTo(48, 16);
+      pracCtx.lineTo(48, 244);
+      pracCtx.lineTo(1184, 244);
+      pracCtx.stroke();
+
+      // 기준선
+      [floor, (floor + ceil) / 2, ceil].forEach(t => {
+        const y = mapF0ToYPrac(t, floor, ceil);
+        pracCtx.strokeStyle = '#eeeeee';
+        pracCtx.beginPath();
+        pracCtx.moveTo(48, y);
+        pracCtx.lineTo(1184, y);
+        pracCtx.stroke();
+        pracCtx.fillStyle = '#666666';
+        pracCtx.font = '12px system-ui';
+        pracCtx.fillText(Math.round(t) + ' Hz', 8, y - 2);
+      });
+
+      // 모범 발화 (회색)
+      const visibleModel = modelF0;
+      if (visibleModel.length > 0) {
+        pracCtx.strokeStyle = '#888888';
+        pracCtx.lineWidth = 2;
+        pracCtx.beginPath();
+        let started = false;
+        for (let i = 0; i < visibleModel.length; i++) {
+          const f0 = visibleModel[i];
+          if (f0 <= 0) {
+            started = false;
+            continue;
+          }
+          const x = 48 + (i / Math.max(visibleModel.length - 1, 1)) * 1136;
+          const y = mapF0ToYPrac(f0, floor, ceil);
+          if (!started) {
+            pracCtx.moveTo(x, y);
+            started = true;
+          } else {
+            pracCtx.lineTo(x, y);
+          }
+        }
+        pracCtx.stroke();
+      }
+
+      // 내 발화 (빨간색)
+      const visibleUser = userF0;
+      if (visibleUser.length > 0) {
+        pracCtx.strokeStyle = '#e65b5b';
+        pracCtx.lineWidth = 2;
+        pracCtx.beginPath();
+        let started2 = false;
+        for (let i = 0; i < visibleUser.length; i++) {
+          const f0 = visibleUser[i];
+          if (f0 <= 0) {
+            started2 = false;
+            continue;
+          }
+          const x = 48 + (i / Math.max(visibleUser.length - 1, 1)) * 1136;
+          const y = mapF0ToYPrac(f0, floor, ceil);
+          if (!started2) {
+            pracCtx.moveTo(x, y);
+            started2 = true;
+          } else {
+            pracCtx.lineTo(x, y);
+          }
+        }
+        pracCtx.stroke();
+      }
+
+      pracCtx.lineWidth = 1;
+    }
+
+    // ===== 연습 모드: 문장 정의 및 모범 F0 추출 =====
     const sentenceDefs = {
       "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (판정)" },
       "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (설명)" },
@@ -470,11 +573,10 @@
     async function loadSentenceBuffer(key) {
       if (!sentenceDefs[key]) return null;
       if (sentenceBuffers[key]) return sentenceBuffers[key];
-
       const def = sentenceDefs[key];
       try {
         const resp = await fetch(def.file);
-        if (!resp.ok) throw new Error("File not found");
+        if (!resp.ok) throw new Error('file not found');
         const arrayBuf = await resp.arrayBuffer();
         const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
         const buffer = await tmpCtx.decodeAudioData(arrayBuf);
@@ -482,7 +584,7 @@
         sentenceBuffers[key] = buffer;
         return buffer;
       } catch (e) {
-        alert("모범 발화 파일을 불러오지 못했습니다: " + def.file);
+        alert('모범 발화 파일을 불러오지 못했습니다: ' + def.file);
         console.error(e);
         return null;
       }
@@ -497,17 +599,20 @@
       const hop  = 512;
       const tmp  = new Float32Array(size);
 
-      modelPoints.length = 0;
+      modelF0.length = 0;
 
       const floor = getFloor();
       const ceil  = getCeil();
 
       for (let pos = 0; pos + size < data.length; pos += hop) {
-        for (let i = 0; i < size; i++) tmp[i] = data[pos + i];
+        for (let i = 0; i < size; i++) {
+          tmp[i] = data[pos + i];
+        }
         const f0 = autoCorrelate(new Float32Array(tmp), sr, floor, ceil);
-        modelPoints.push(f0 > 0 ? f0 : 0);
-        if (modelPoints.length > maxPoints) break;
+        modelF0.push(f0 > 0 ? f0 : 0);
+        if (modelF0.length > 1000) break;
       }
+      drawPractice();
     }
 
     sentBtns.forEach(btn => {
@@ -516,16 +621,16 @@
         currentSentKey = key;
         sentBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        userPoints.length = 0; // 내 발화 곡선 초기화
+        userF0.length = 0;
         await updateModelF0(key);
       });
     });
 
-    // 모범 발화 재생
+    // ===== 연습 모드: 모범 발화 재생 =====
     const btnPlayModel = document.getElementById('btn-play-model');
     btnPlayModel.addEventListener('click', async () => {
       if (!currentSentKey) {
-        alert("먼저 연습할 문장을 선택해 주세요.");
+        alert('먼저 연습할 문장을 선택해 주세요.');
         return;
       }
       const buffer = await loadSentenceBuffer(currentSentKey);
@@ -538,53 +643,52 @@
       src.onended = () => ctx.close();
     });
 
-    // 연습 녹음
-    let pracCtx = null;
-    let pracSource = null;
+    // ===== 연습 모드: 내 발화 녹음 → F0 추출 =====
+    let pracAudioCtx = null;
+    let pracSource   = null;
     let pracProcessor = null;
-    let pracStream = null;
+    let pracStream   = null;
 
     const btnPracStart = document.getElementById('btn-prac-start');
     const btnPracStop  = document.getElementById('btn-prac-stop');
 
     async function startPracticeRecording() {
       if (!currentSentKey) {
-        alert("먼저 연습할 문장을 선택해 주세요.");
+        alert('먼저 연습할 문장을 선택해 주세요.');
         return;
       }
-      if (pracCtx) return;
-
+      if (pracAudioCtx) return;
       try {
         pracStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (e) {
-        alert("마이크 권한이 필요합니다.");
+        alert('마이크 권한이 필요합니다.');
         console.error(e);
         return;
       }
-
-      pracCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (pracCtx.state === "suspended") {
-        await pracCtx.resume();
+      pracAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (pracAudioCtx.state === 'suspended') {
+        await pracAudioCtx.resume();
       }
-
-      pracSource = pracCtx.createMediaStreamSource(pracStream);
-      pracProcessor = pracCtx.createScriptProcessor(2048, 1, 1);
+      pracSource = pracAudioCtx.createMediaStreamSource(pracStream);
+      pracProcessor = pracAudioCtx.createScriptProcessor(2048, 1, 1);
 
       pracSource.connect(pracProcessor);
-      pracProcessor.connect(pracCtx.destination);
+      pracProcessor.connect(pracAudioCtx.destination);
 
-      userPoints.length = 0;
+      userF0.length = 0;
 
       pracProcessor.onaudioprocess = (e) => {
         const inbuf = e.inputBuffer.getChannelData(0);
         const tmp = new Float32Array(inbuf);
-        const f0 = autoCorrelate(tmp, pracCtx.sampleRate, getFloor(), getCeil());
-        userPoints.push(f0 > 0 ? f0 : 0);
-        if (userPoints.length > maxPoints) userPoints.shift();
+        const f0 = autoCorrelate(tmp, pracAudioCtx.sampleRate, getFloor(), getCeil());
+        userF0.push(f0 > 0 ? f0 : 0);
+        if (userF0.length > 1000) {
+          userF0.shift();
+        }
       };
 
       btnPracStart.disabled = true;
-      btnPracStop.disabled = false;
+      btnPracStop.disabled  = false;
     }
 
     function stopPracticeRecording() {
@@ -601,16 +705,42 @@
         pracStream.getTracks().forEach(t => t.stop());
         pracStream = null;
       }
-      if (pracCtx) {
-        pracCtx.close();
-        pracCtx = null;
+      if (pracAudioCtx) {
+        pracAudioCtx.close();
+        pracAudioCtx = null;
       }
       btnPracStart.disabled = false;
-      btnPracStop.disabled = true;
+      btnPracStop.disabled  = true;
+      drawPractice();
     }
 
     btnPracStart.addEventListener('click', startPracticeRecording);
     btnPracStop.addEventListener('click', stopPracticeRecording);
+
+    // ===== 연습 모드: 내 F0 데이터 다운로드 =====
+    const btnDownloadF0 = document.getElementById('btn-download-f0');
+    btnDownloadF0.addEventListener('click', () => {
+      if (!userF0.length) {
+        alert('먼저 내 발화를 녹음해서 F0 곡선을 만들어 주세요.');
+        return;
+      }
+      let csv = 'index,f0_Hz\\n';
+      userF0.forEach((f0, i) => {
+        csv += i + ',' + f0 + '\\n';
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my_intonation_f0.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // 초기 연습 캔버스 축만 그려두기
+    drawPractice();
   </script>
 </body>
 </html>
