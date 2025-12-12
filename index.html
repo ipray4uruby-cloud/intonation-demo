@@ -220,14 +220,14 @@
 
     // ===== 문장 연습 모드 (기존 유지) =====
     const sentenceDefs = {
-      "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (판정)" },
-      "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (설명)" },
-      "eodi_yn":  { file: "audio/eodi_yn.wav",  label: "어디 가요? (판정)" },
-      "eodi_wh":  { file: "audio/eodi_wh.wav",  label: "어디 가요? (설명)" },
-      "eonje_yn": { file: "audio/eonje_yn.wav", label: "언제 와요? (판정)" },
-      "eonje_wh": { file: "audio/eonje_wh.wav", label: "언제 와요? (설명)" },
-      "mwo_yn":   { file: "audio/mwo_yn.wav",   label: "뭐 해요? (판정)" },
-      "mwo_wh":   { file: "audio/mwo_wh.wav",   label: "뭐 해요? (설명)" }
+      "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (Y/N)" },
+      "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (WH)" },
+      "eodi_yn":  { file: "audio/eodi_yn.wav",  label: "어디 가요? (Y/N)" },
+      "eodi_wh":  { file: "audio/eodi_wh.wav",  label: "어디 가요? (WH)" },
+      "eonje_yn": { file: "audio/eonje_yn.wav", label: "언제 만나요? (Y/N)" },
+      "eonje_wh": { file: "audio/eonje_wh.wav", label: "언제 만나요? (WH)" },
+      "mwo_yn":   { file: "audio/mwo_yn.wav",   label: "뭐 먹을래요? (Y/N)" },
+      "mwo_wh":   { file: "audio/mwo_wh.wav",   label: "뭐 먹을래요? (WH)" }
     };
 
     const sentenceBuffers = {}; 
@@ -377,3 +377,4 @@
     btnPracStart.addEventListener('click', startPracticeRecording);
     btnPracStop.addEventListener('click', stopPracticeRecording);
   </script>
+
