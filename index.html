@@ -1,5 +1,270 @@
-<script>
-    // ===== 공통: 탭 전환 =====
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>한국어 억양 웹앱 (데모)</title>
+  <style>
+    :root {
+      --fg: #222;
+      --blue: #0a74da;
+      --red: #e65b5b;
+      --gray: #888;
+      --bg: #fafafa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--fg);
+      background: #fff;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 18px 0 8px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab-btn {
+      flex: 0 0 auto;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .panel.hidden { display: none; }
+
+    #canvas-box {
+      margin: 12px 0;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid #e5e5e5;
+      padding: 8px;
+    }
+    #c {
+      width: 100%;
+      height: 260px;
+      border-radius: 12px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .dot.live { background: var(--blue); }
+    .dot.model { background: var(--gray); }
+    .dot.user { background: var(--red); }
+
+    .now-f0 {
+      margin-top: 6px;
+      font-size: 13px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 4px;
+      font-size: 13px;
+    }
+    .row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    input[type="number"] {
+      width: 80px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    button.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .section-title {
+      font-weight: 600;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+    .caption {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    /* 연습 모드 */
+    .wh-group-wrap {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .wh-card {
+      border-radius: 12px;
+      border: 1px solid #eee;
+      padding: 8px;
+      background: #fafafa;
+    }
+    .wh-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .sent-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .sent-btn.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #e6f2ff;
+    }
+    .practice-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 600px) {
+      body { margin: 12px; }
+      #c { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎤 한국어 억양 웹앱</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="live">실시간 F0 보기</button>
+    <button class="tab-btn" data-tab="practice">문장 연습 모드</button>
+  </div>
+
+  <div id="canvas-box">
+    <canvas id="c" width="1200" height="260"></canvas>
+    <div class="legend">
+      <span><span class="dot live"></span>실시간 F0 (Start/Stop)</span>
+      <span><span class="dot model"></span>모범 발화 F0 (연습 모드)</span>
+      <span><span class="dot user"></span>내 발화 F0 (연습 모드)</span>
+    </div>
+    <div id="now" class="now-f0">현재 F0: -- Hz</div>
+    <div class="row">
+      <label>Floor(Hz)
+        <input id="floor" type="number" value="75" min="40" max="200" />
+      </label>
+      <label>Ceiling(Hz)
+        <input id="ceil" type="number" value="400" min="200" max="800" />
+      </label>
+    </div>
+  </div>
+
+  <!-- 실시간 모드 패널 -->
+  <div id="tab-live" class="panel">
+    <div class="section-title">① 실시간 억양(F0) 곡선 보기</div>
+    <div class="caption">
+      Start를 눌러 마이크 권한을 허용한 뒤 말을 해 보세요.  
+      하늘색 선이 실시간 F0 곡선입니다. Stop을 눌러도 곡선은 화면에 남습니다.
+    </div>
+    <div class="row">
+      <button id="start" class="primary">Start</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+  </div>
+
+  <!-- 문장 연습 모드 패널 -->
+  <div id="tab-practice" class="panel hidden">
+    <div class="section-title">② 문장 연습 모드</div>
+    <div class="caption">
+      의문사를 선택하고, 판정 의문문(Y/N)과 설명 의문문(Wh) 억양을 비교해 보세요.
+      모범 발화를 듣고, 내 억양을 녹음하여 곡선을 비교할 수 있습니다.
+    </div>
+
+    <div class="wh-group-wrap">
+      <div class="wh-card">
+        <div class="wh-title">누구</div>
+        <button class="sent-btn" data-sent="nugu_yn">누구 만나요? (판정)</button>
+        <button class="sent-btn" data-sent="nugu_wh">누구 만나요? (설명)</button>
+      </div>
+      <div class="wh-card">
+        <div class="wh-title">어디</div>
+        <button class="sent-btn" data-sent="eodi_yn">어디 가요? (판정)</button>
+        <button class="sent-btn" data-sent="eodi_wh">어디 가요? (설명)</button>
+      </div>
+      <div class="wh-card">
+        <div class="wh-title">언제</div>
+        <button class="sent-btn" data-sent="eonje_yn">언제 와요? (판정)</button>
+        <button class="sent-btn" data-sent="eonje_wh">언제 와요? (설명)</button>
+      </div>
+      <div class="wh-card">
+        <div class="wh-title">뭐</div>
+        <button class="sent-btn" data-sent="mwo_yn">뭐 해요? (판정)</button>
+        <button class="sent-btn" data-sent="mwo_wh">뭐 해요? (설명)</button>
+      </div>
+    </div>
+
+    <div class="practice-controls">
+      <button id="btn-play-model">모범 발화 재생</button>
+      <button id="btn-prac-start" class="primary">내 발화 녹음 시작</button>
+      <button id="btn-prac-stop" disabled>녹음 종료</button>
+    </div>
+    <div class="caption">
+      ⚠️ 모범 발화 파일은 <code>/audio</code> 폴더에  
+      <code>nugu_yn.wav, nugu_wh.wav, eodi_yn.wav, eodi_wh.wav, eonje_yn.wav, eonje_wh.wav, mwo_yn.wav, mwo_wh.wav</code>  
+      이름으로 넣어 두어야 합니다.
+    </div>
+  </div>
+
+  <script>
+    // ===== 탭 전환 =====
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanels = {
       live: document.getElementById('tab-live'),
@@ -16,7 +281,7 @@
       });
     });
 
-    // ===== 공통: F0 계산 함수 (개선됨) =====
+    // ===== 공통: F0 계산 함수 =====
     function autoCorrelate(buf, sr, floor = 75, ceil = 400) {
       const N = buf.length;
       let mean = 0;
@@ -28,12 +293,10 @@
         buf[i] = (buf[i] - mean) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
       }
 
-      // RMS 계산 (소리 크기 체크)
+      // RMS 계산 (작은 목소리도 잡히도록 임계값 낮춤)
       let rms = 0;
       for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
       rms = Math.sqrt(rms / N);
-      
-      // [수정 포인트 1] 감도 임계값을 0.01 -> 0.002로 낮춤 (작은 목소리도 감지)
       if (rms < 0.002) return 0;
 
       const maxLag = Math.floor(sr / floor);
@@ -50,14 +313,13 @@
         const c = xcorr(lag);
         if (c > best) { best = c; bestLag = lag; }
       }
-      
-      // [수정 포인트 2] 상관계수 임계값을 조금 더 너그럽게 조정 (0.1 -> 0.08)
       if (bestLag < 0 || best < 0.08) return 0;
 
       const c1 = xcorr(bestLag - 1), c2 = xcorr(bestLag), c3 = xcorr(bestLag + 1);
       const denom = (c1 - 2 * c2 + c3);
       let shift = 0;
       if (Math.abs(denom) > 1e-6) shift = 0.5 * (c1 - c3) / denom;
+
       return sr / (bestLag + shift);
     }
 
@@ -79,27 +341,23 @@
     function mapF0(f, fmin, fmax) {
       const clamped = Math.max(fmin, Math.min(fmax, f));
       const r = (clamped - fmin) / (fmax - fmin);
-      return 244 - r * 220; 
+      return 244 - r * 220;
     }
 
     function drawSeries(points, color, floor, ceil) {
       const visible = points.slice(-maxPoints);
       if (!visible.length) return;
       g.strokeStyle = color;
-      g.lineWidth = 2; // 선 두께 살짝 증가
+      g.lineWidth = 2;
       g.beginPath();
       let started = false;
       for (let i = 0; i < visible.length; i++) {
         const f0 = visible[i];
-        // 0Hz(무음) 구간은 선을 끊어서 그림
-        if (f0 <= 0) { 
-          started = false; 
-          continue; 
-        }
-        
+        if (f0 <= 0) { started = false; continue; }
+
         const x = 48 + (i / Math.max(visible.length - 1, 1)) * 1136;
         const y = mapF0(f0, floor, ceil);
-        
+
         if (!started) { g.moveTo(x, y); started = true; }
         else { g.lineTo(x, y); }
       }
@@ -133,16 +391,15 @@
         g.fillText(Math.round(t) + " Hz", 8, y - 2);
       });
 
-      // 데이터 시리즈
-      drawSeries(modelPoints, "#888888", floor, ceil); 
-      drawSeries(userPoints, "#e65b5b", floor, ceil);  
-      drawSeries(livePoints, "#0a74da", floor, ceil);  
+      drawSeries(modelPoints, "#888888", floor, ceil);
+      drawSeries(userPoints, "#e65b5b", floor, ceil);
+      drawSeries(livePoints, "#0a74da", floor, ceil);
 
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);
 
-    // ===== 실시간 모드 (수정됨) =====
+    // ===== 실시간 모드 =====
     let audioCtxLive = null;
     let sourceLive = null;
     let processorLive = null;
@@ -153,7 +410,7 @@
     const nowEl = document.getElementById('now');
 
     async function startLive() {
-      if (audioCtxLive) return; 
+      if (audioCtxLive) return;
       try {
         streamLive = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (e) {
@@ -163,28 +420,24 @@
       }
 
       audioCtxLive = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // [수정 포인트 3] AudioContext가 suspended 상태라면 강제로 깨움 (가장 중요!)
       if (audioCtxLive.state === 'suspended') {
         await audioCtxLive.resume();
       }
 
       sourceLive = audioCtxLive.createMediaStreamSource(streamLive);
       processorLive = audioCtxLive.createScriptProcessor(2048, 1, 1);
-      
+
       sourceLive.connect(processorLive);
-      // processorLive를 destination에 연결해야 크롬에서 작동함 (소리는 안 나게 됨)
       processorLive.connect(audioCtxLive.destination);
 
       processorLive.onaudioprocess = (e) => {
         const inbuf = e.inputBuffer.getChannelData(0);
-        // 처리 속도를 위해 매번 새 배열을 복사
-        const tmp = new Float32Array(inbuf); 
+        const tmp = new Float32Array(inbuf);
         const f0 = autoCorrelate(tmp, audioCtxLive.sampleRate, getFloor(), getCeil());
-        
+
         livePoints.push(f0 > 0 ? f0 : 0);
         if (livePoints.length > 5000) livePoints.shift();
-        
+
         nowEl.textContent = "현재 F0: " + (f0 ? Math.round(f0) + " Hz" : "-- Hz");
       };
 
@@ -218,19 +471,19 @@
     startBtn.addEventListener('click', startLive);
     stopBtn.addEventListener('click', stopLive);
 
-    // ===== 문장 연습 모드 (기존 유지) =====
+    // ===== 문장 연습 모드 =====
     const sentenceDefs = {
-      "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (Y/N)" },
-      "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (WH)" },
       "eodi_yn":  { file: "audio/eodi_yn.wav",  label: "어디 가요? (Y/N)" },
       "eodi_wh":  { file: "audio/eodi_wh.wav",  label: "어디 가요? (WH)" },
-      "eonje_yn": { file: "audio/eonje_yn.wav", label: "언제 만나요? (Y/N)" },
-      "eonje_wh": { file: "audio/eonje_wh.wav", label: "언제 만나요? (WH)" },
+      "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (Y/N)" },
+      "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (WH)" },
+      "eonje_yn": { file: "audio/eonje_yn.wav", label: "언제 만날래요? (Y/N)" },
+      "eonje_wh": { file: "audio/eonje_wh.wav", label: "언제 만날래요? (WH)" },
       "mwo_yn":   { file: "audio/mwo_yn.wav",   label: "뭐 먹을래요? (Y/N)" },
       "mwo_wh":   { file: "audio/mwo_wh.wav",   label: "뭐 먹을래요? (WH)" }
     };
 
-    const sentenceBuffers = {}; 
+    const sentenceBuffers = {};
     const sentBtns = document.querySelectorAll('.sent-btn');
     let currentSentKey = null;
 
@@ -270,7 +523,6 @@
 
       for (let pos = 0; pos + size < data.length; pos += hop) {
         for (let i = 0; i < size; i++) tmp[i] = data[pos + i];
-        // 모범 발화 분석 시에는 항상 새 복사본 전달
         const f0 = autoCorrelate(new Float32Array(tmp), sr, floor, ceil);
         modelPoints.push(f0 > 0 ? f0 : 0);
         if (modelPoints.length > 5000) break;
@@ -283,7 +535,7 @@
         currentSentKey = key;
         sentBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        userPoints.length = 0; 
+        userPoints.length = 0;
         await updateModelF0(key);
       });
     });
@@ -304,7 +556,7 @@
       src.onended = () => ctx.close();
     });
 
-    // 연습 녹음 (여기도 Resume 추가 및 RMS 동일 적용)
+    // 연습 녹음
     let pracCtx = null;
     let pracSource = null;
     let pracProcessor = null;
@@ -327,8 +579,6 @@
         return;
       }
       pracCtx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // [수정 포인트 4] 연습 모드에서도 AudioContext 깨우기
       if (pracCtx.state === 'suspended') {
         await pracCtx.resume();
       }
@@ -377,4 +627,5 @@
     btnPracStart.addEventListener('click', startPracticeRecording);
     btnPracStop.addEventListener('click', stopPracticeRecording);
   </script>
-
+</body>
+</html>
