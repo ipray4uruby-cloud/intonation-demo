@@ -1,611 +1,559 @@
 <!doctype html>
 <html lang="ko">
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>🎤 한국어 억양 웹앱 (실시간 + 연습)</title>
-<style>
-  :root { --fg:#222; }
-  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin:16px; color:var(--fg);}
-  h1 { font-size: 20px; margin-bottom: 8px; display:flex; align-items:center; gap:6px;}
-  h2 { font-size: 16px; margin:16px 0 8px;}
-  #c { width:100%; height:260px; border:1px solid #ddd; border-radius:12px;}
-  .row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; align-items:center;}
-  button { padding:8px 12px; border:1px solid #ccc; border-radius:999px; cursor:pointer; background:#fff; font-size:14px;}
-  button[disabled]{opacity:0.45; cursor:default;}
-  input[type=number]{width:90px; padding:4px 6px; border-radius:6px; border:1px solid #ccc; font-size:13px;}
-  .tabs { display:flex; gap:8px; margin:16px 0;}
-  .tab-btn { padding:8px 16px; border-radius:999px; border:1px solid #ccc; cursor:pointer; background:#f7f7f7;}
-  .tab-btn.active { background:#0a74da; color:#fff; border-color:#0a74da;}
-  .tab { display:none; }
-  .tab.active { display:block; }
-  #feedback { margin-top:8px; font-size:14px; color:#333; }
-  .wh-button { padding:6px 12px; border-radius:999px; border:1px solid #ddd; background:#fafafa; font-size:13px;}
-  .wh-button.active { background:#0a74da; color:#fff; border-color:#0a74da;}
-  .variant-button { padding:6px 12px; border-radius:999px; border:1px solid #ddd; background:#f3f3f3; font-size:13px;}
-  .variant-button.active { background:#ff9500; color:#fff; border-color:#ff9500;}
-  .meta { font-size:12px; color:#666; }
-  .legend { font-size:12px; margin-top:6px; display:flex; flex-wrap:wrap; gap:12px;}
-  .legend span { display:flex; align-items:center; gap:4px; }
-  .legend-color { width:10px; height:10px; border-radius:50%; }
-  .pill-label { font-size:12px; padding:2px 8px; border-radius:999px; background:#f0f0f0; }
-</style>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>한국어 억양 웹앱</title>
+  <style>
+    :root {
+      --fg: #222;
+      --blue: #0a74da;
+      --blue-light: #e6f2ff;
+      --gray: #888;
+      --red: #e65b5b;
+      --border: #ddd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 16px;
+      color: var(--fg);
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab-btn {
+      flex: 0 0 auto;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      font-weight: 600;
+    }
+    #c {
+      width: 100%;
+      height: 260px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: block;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 14px;
+      align-items: center;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .dot-live { background: var(--blue); }
+    .dot-model { background: #aaa; }
+    .dot-user { background: var(--red); }
+    #now {
+      margin-top: 6px;
+      font-size: 14px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+      align-items: center;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      font-weight: 600;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    label {
+      font-size: 13px;
+    }
+    input[type=number]{
+      width: 80px;
+      padding: 4px 6px;
+      margin-left: 4px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .tab-panel { margin-top: 12px; }
+    .hidden { display: none; }
 
+    .section-title {
+      font-weight: 600;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+
+    .sent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .sent-btn {
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fafafa;
+      text-align: center;
+    }
+    .sent-btn.active {
+      border-color: var(--blue);
+      background: var(--blue-light);
+      font-weight: 600;
+    }
+    .help {
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      body { margin: 12px; }
+      #c { height: 220px; }
+    }
+  </style>
+</head>
 <body>
-<h1>🎤 <span>한국어 억양 웹앱</span></h1>
+  <h1>🎤 한국어 억양 웹앱</h1>
 
-<div class="tabs">
-  <button class="tab-btn active" data-tab="live">실시간 F0 보기</button>
-  <button class="tab-btn" data-tab="practice">문장 연습 모드</button>
-</div>
-
-<!-- 공통: F0 캔버스 -->
-<canvas id="c" width="1200" height="260"></canvas>
-<div class="legend">
-  <span><span class="legend-color" style="background:#00bcd4;"></span>실시간 F0 (Start/Stop)</span>
-  <span><span class="legend-color" style="background:#888888;"></span>모범 발화 F0 (연습 모드)</span>
-  <span><span class="legend-color" style="background:#ff6666;"></span>내 발화 F0 (연습 모드)</span>
-</div>
-<div class="row meta">
-  <div>현재 F0: <span id="now">-- Hz</span></div>
-  <div style="margin-left:auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-    <span>Floor(Hz)</span>
-    <input id="floor" type="number" value="75" min="40" max="200">
-    <span>Ceiling(Hz)</span>
-    <input id="ceil" type="number" value="400" min="200" max="800">
-  </div>
-</div>
-
-<!-- 탭 1: 실시간 F0 보기 -->
-<div class="tab active" id="tab-live">
-  <h2>① 실시간 억양(F0) 곡선 보기</h2>
-  <div class="row">
-    <button id="start">Start</button>
-    <button id="stop" disabled>Stop</button>
-  </div>
-  <p class="meta">
-    Start를 누르고 마이크 권한을 허용한 뒤, 말을 해 보세요.  
-    하늘색 선이 실시간 F0 곡선입니다. Stop을 눌러도 곡선은 화면에 남습니다.
-  </p>
-</div>
-
-<!-- 탭 2: 문장 연습 모드 -->
-<div class="tab" id="tab-practice">
-  <h2>② 문장 연습 모드 (판정/설명 억양 비교)</h2>
-
-  <!-- (1) 의문사 선택 -->
-  <div class="row">
-    <span class="pill-label">의문사 선택</span>
-    <button class="wh-button" data-id="nugu">누구</button>
-    <button class="wh-button" data-id="eodi">어디</button>
-    <button class="wh-button" data-id="mwo">뭐</button>
-    <button class="wh-button" data-id="eonje">언제</button>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="live">실시간 F0 보기</button>
+    <button class="tab-btn" data-tab="practice">문장 연습 모드</button>
   </div>
 
-  <!-- (2) 억양 유형 선택 -->
-  <div class="row">
-    <span class="pill-label">억양 유형</span>
-    <button class="variant-button" data-variant="yn">판정 의문문 (Y/N)</button>
-    <button class="variant-button" data-variant="wh">설명 의문문 (WH)</button>
+  <canvas id="c" width="1200" height="260"></canvas>
+
+  <div class="legend">
+    <span class="legend-item"><span class="dot dot-live"></span>실시간 F0 (Start/Stop)</span>
+    <span class="legend-item"><span class="dot dot-model"></span>모범 발화 F0 (연습 모드)</span>
+    <span class="legend-item"><span class="dot dot-user"></span>내 발화 F0 (연습 모드)</span>
+  </div>
+  <div id="now">현재 F0: -- Hz</div>
+
+  <div class="row" style="margin-top:8px;">
+    <label>Floor(Hz)<input id="floor" type="number" value="75" min="40" max="200"></label>
+    <label>Ceiling(Hz)<input id="ceil" type="number" value="400" min="200" max="800"></label>
   </div>
 
-  <!-- (3) 문장 표시 -->
-  <div class="row">
-    <div id="sent-text" class="meta">의문사와 억양 유형을 선택하면 문장이 표시됩니다.</div>
-  </div>
+  <!-- 탭: 실시간 F0 -->
+  <section id="tab-live" class="tab-panel">
+    <div class="section-title">① 실시간 억양(F0) 곡선 보기</div>
+    <div class="row">
+      <button id="start" class="primary">Start</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+    <p class="help">Start를 누르고 마이크 권한을 허용한 뒤, 말을 해 보세요. 파란 선이 실시간 F0 곡선입니다.</p>
+  </section>
 
-  <!-- (4) 재생/녹음 -->
-  <div class="row">
-    <button id="play-native" disabled>모범 발음 재생</button>
-    <button id="record-once" disabled>내 발음 녹음(1회)</button>
-  </div>
+  <!-- 탭: 문장 연습 모드 -->
+  <section id="tab-practice" class="tab-panel hidden">
+    <div class="section-title">② 문장 연습 모드</div>
+    <p class="help">연습할 문장을 선택한 뒤, 모범 발화를 듣고 내 발화를 녹음하며 억양을 비교해 보세요.</p>
 
-  <p class="meta">
-    절차: ① 의문사를 선택하고 ② 판정/설명 억양을 선택한 뒤  
-    ③ 모범 발음을 듣고 ④ 내 발화를 여러 번 연습할 수 있습니다.  
-    마지막에 가장 잘 된 발화를 녹음한 뒤, 회색 선(모범)과 빨간 선(내 발화)의 F0 곡선을 비교해 보세요.
-  </p>
+    <div class="sent-grid">
+      <button class="sent-btn" data-sent="nugu_yn">누구 만나요? (판정)</button>
+      <button class="sent-btn" data-sent="nugu_wh">누구 만나요? (설명)</button>
+      <button class="sent-btn" data-sent="eodi_yn">어디 가요? (판정)</button>
+      <button class="sent-btn" data-sent="eodi_wh">어디 가요? (설명)</button>
+      <button class="sent-btn" data-sent="eonje_yn">언제 와요? (판정)</button>
+      <button class="sent-btn" data-sent="eonje_wh">언제 와요? (설명)</button>
+      <button class="sent-btn" data-sent="mwo_yn">뭐 해요? (판정)</button>
+      <button class="sent-btn" data-sent="mwo_wh">뭐 해요? (설명)</button>
+    </div>
 
-  <div id="feedback" class="meta"></div>
+    <div class="row" style="margin-top:12px;">
+      <button id="btn-play-model">모범 발화 듣기</button>
+      <button id="btn-prac-start" class="primary">내 발화 녹음 시작</button>
+      <button id="btn-prac-stop" disabled>내 발화 녹음 종료</button>
+    </div>
+    <p class="help">회색 선이 모범 억양, 빨간 선이 내 발화 억양입니다.</p>
+  </section>
 
-  <hr style="margin:16px 0; border:none; border-top:1px dashed #ddd;">
-
-  <h2>③ 최종 연습 결과 파일 다운로드</h2>
-  <p class="meta">
-    아래 기능은 <strong>현재 화면에 보이는 마지막 녹음 결과</strong>를 로컬 파일로 저장합니다.  
-    파일을 다운로드하여 이 파일을 연구자에게 제출하여야 합니다.
-  </p>
-
-  <div class="row">
-    <button id="download-audio" disabled>현재 녹음 음성 다운로드 (WAV)</button>
-    <button id="download-f0" disabled>현재 F0 곡선 데이터 다운로드 (JSON)</button>
-  </div>
-
-  <p class="meta">
-    - 마음껏 연습해도 되고, <strong>제일 잘 된 발화</strong>를 마지막에 한 번 더 녹음한 뒤 다운로드하면 됩니다.<br>
-    - JSON 파일에는 해당 문장, 억양 유형, F0 값이 포함되어 연구 분석에 활용됩니다.
-  </p>
-</div>
-
-<script>
-// ===== 연습 문장/파일 설정 (4 의문사 × 2 억양) =====
-const QUESTION_CONFIG = {
-  nugu: {
-    label: "누구",
-    sentence: "누구 만나요?",
-    audio: {
-      yn: "audio/nugu_yn.wav",
-      wh: "audio/nugu_wh.wav"
-    }
-  },
-  eodi: {
-    label: "어디",
-    sentence: "어디 가요?",
-    audio: {
-      yn: "audio/eodi_yn.wav",
-      wh: "audio/eodi_wh.wav"
-    }
-  },
-  mwo: {
-    label: "뭐",
-    sentence: "뭐 먹을래요?",
-    audio: {
-      yn: "audio/mwo_yn.wav",
-      wh: "audio/mwo_wh.wav"
-    }
-  },
-  eonje: {
-    label: "언제",
-    sentence: "언제 만날래요?",
-    audio: {
-      yn: "audio/eonje_yn.wav",
-      wh: "audio/eonje_wh.wav"
-    }
-  }
-};
-
-// ===== 공통 캔버스 & F0 함수 =====
-const c = document.getElementById('c');
-const g = c.getContext('2d');
-
-const livePoints = [];             // 실시간 모드: 하늘색
-const practiceNativePoints = [];   // 연습 모드: 회색
-const practiceUserPoints = [];     // 연습 모드: 빨간색
-const maxPoints = 1000;
-
-let animId = null;
-
-function getFloor() { return +document.getElementById('floor').value || 75; }
-function getCeil()  { return +document.getElementById('ceil').value || 400; }
-
-function autoCorrelate(buf, sr, floor = 75, ceil = 400) {
-  const N = buf.length;
-
-  // 1) 평균 제거 + 해밍 윈도우
-  let mean = 0;
-  for (let i = 0; i < N; i++) mean += buf[i];
-  mean /= N;
-
-  let rms = 0;
-  for (let i = 0; i < N; i++) {
-    const v = buf[i] - mean;
-    const w = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (N - 1)); // 해밍 윈도우
-    const s = v * w;
-    buf[i] = s;
-    rms += s * s;
-  }
-  rms = Math.sqrt(rms / N);
-
-  // 🔸 너무 엄격해서 다 0 되는 걸 막기 위해 기준을 확 낮춤
-  if (rms < 0.002) return 0;   // (원래 0.01 정도였음)
-
-  const maxLag = Math.floor(sr / floor);
-  const minLag = Math.floor(sr / ceil);
-
-  let bestLag = -1;
-  let best = 0;
-
-  // 2) 자기상관 계산
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    let sum = 0;
-    for (let i = 0; i < N - lag; i++) {
-      sum += buf[i] * buf[i + lag];
-    }
-    const corr = sum / (N - lag);
-    if (corr > best) {
-      best = corr;
-      bestLag = lag;
-    }
-  }
-
-  // 🔸 상관계수 기준도 완화 (0.1 → 0.05)
-  if (bestLag < 0 || best < 0.05) return 0;
-
-  // 3) 주기 → F0
-  return sr / bestLag;
-}
-
-
-function computeF0Track(floatBuf, sr, frameSize=2048, hopSize=512){
-  const floor = getFloor(), ceil = getCeil();
-  const len = floatBuf.length;
-  const f0s = [];
-  for(let start=0; start+frameSize <= len; start += hopSize){
-    const frame = floatBuf.slice(start, start+frameSize);
-    const f0 = autoCorrelate(new Float32Array(frame), sr, floor, ceil);
-    f0s.push(f0 > 0 ? f0 : 0);
-  }
-  return f0s;
-}
-
-function mapF0(f,fmin,fmax){
-  const clamped = Math.max(fmin,Math.min(fmax,f));
-  const r = (clamped-fmin)/(fmax-fmin);
-  return 244 - r*220;
-}
-
-function drawTrack(arr, color, floor, ceil){
-  if(!arr.length) return;
-  g.strokeStyle = color; g.beginPath();
-  const visible = arr.slice(-maxPoints);
-  let started=false;
-  for(let i=0;i<visible.length;i++){
-    const f0 = visible[i];
-    if(f0<=0){ started=false; continue; }
-    const x = 48+(i/Math.max(visible.length-1,1))*1136;
-    const y = mapF0(f0,floor,ceil);
-    if(!started){ g.moveTo(x,y); started=true; }
-    else{ g.lineTo(x,y); }
-  }
-  g.stroke();
-}
-
-function draw(){
-  g.clearRect(0,0,c.width,c.height);
-  const floor = getFloor(), ceil = getCeil();
-
-  // 축 / 격자
-  g.strokeStyle="#eee"; g.beginPath(); g.moveTo(48,16); g.lineTo(48,244); g.lineTo(1184,244); g.stroke();
-  [floor, (floor+ceil)/2, ceil].forEach(t=>{
-    const y=mapF0(t,floor,ceil);
-    g.strokeStyle="#eee"; g.beginPath(); g.moveTo(48,y); g.lineTo(1184,y); g.stroke();
-    g.fillStyle="#666"; g.font="12px system-ui"; g.fillText(Math.round(t)+" Hz",8,y-2);
-  });
-
-  // 세 가지 트랙 그리기
-  drawTrack(livePoints, "#00bcd4", floor, ceil);      // 실시간: 하늘색
-  drawTrack(practiceNativePoints, "#888888", floor, ceil); // 모범: 회색
-  drawTrack(practiceUserPoints, "#ff6666", floor, ceil);   // 내 발화: 빨간색
-
-  animId = requestAnimationFrame(draw);
-}
-
-// ===== 탭 전환 =====
-const tabBtns = document.querySelectorAll('.tab-btn');
-const tabs = {
-  live: document.getElementById('tab-live'),
-  practice: document.getElementById('tab-practice')
-};
-tabBtns.forEach(btn=>{
-  btn.onclick = ()=>{
-    tabBtns.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const tabId = btn.dataset.tab;
-    Object.keys(tabs).forEach(id=>{
-      tabs[id].classList.toggle('active', id===tabId);
+  <script>
+    // ===== 공통: 탭 전환 =====
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanels = {
+      live: document.getElementById('tab-live'),
+      practice: document.getElementById('tab-practice')
+    };
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        tabButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        Object.keys(tabPanels).forEach(key => {
+          tabPanels[key].classList.toggle('hidden', key !== target);
+        });
+      });
     });
-  };
-});
 
-// ===== 실시간 모드 =====
-let audioCtxLive, sourceLive, processorLive, streamLive;
-const startBtn=document.getElementById('start'),
-      stopBtn=document.getElementById('stop');
+    // ===== 공통: F0 계산 함수 (ver1.0 기반) =====
+    function autoCorrelate(buf, sr, floor = 75, ceil = 400) {
+      const N = buf.length;
+      let mean = 0;
+      for (let i = 0; i < N; i++) mean += buf[i];
+      mean /= N;
 
-async function startLive(){
-  try{
-    streamLive = await navigator.mediaDevices.getUserMedia({audio:true});
-  }catch(e){
-    alert("마이크 권한이 필요합니다.");
-    return;
-  }
-  audioCtxLive = new (window.AudioContext || window.webkitAudioContext)();
-  if(audioCtxLive.state === "suspended"){
-    try{ await audioCtxLive.resume(); }catch(e){}
-  }
-  sourceLive = audioCtxLive.createMediaStreamSource(streamLive);
-  processorLive = audioCtxLive.createScriptProcessor(2048,1,1);
-  sourceLive.connect(processorLive);
-  processorLive.connect(audioCtxLive.destination);
+      // 평균 제거 + 해닝 윈도우
+      for (let i = 0; i < N; i++) {
+        buf[i] = (buf[i] - mean) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1)));
+      }
 
-  processorLive.onaudioprocess = (e)=>{
-    const inbuf = e.inputBuffer.getChannelData(0);
-    const f0 = autoCorrelate(new Float32Array(inbuf), audioCtxLive.sampleRate, getFloor(), getCeil());
-    livePoints.push(f0>0?f0:0);
-    if(livePoints.length>5000) livePoints.shift();
-    document.getElementById('now').textContent = "F0: " + (f0?Math.round(f0):"--") + " Hz";
-  };
+      const maxLag = Math.floor(sr / floor);
+      const minLag = Math.floor(sr / ceil);
 
-  if(!animId) draw();
-  startBtn.disabled=true; stopBtn.disabled=false;
-}
+      let rms = 0;
+      for (let i = 0; i < N; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / N);
+      if (rms < 0.01) return 0;
 
-function stopLive(){
-  if(processorLive){processorLive.disconnect(); processorLive.onaudioprocess=null;}
-  if(sourceLive) sourceLive.disconnect();
-  if(streamLive){streamLive.getTracks().forEach(t=>t.stop()); streamLive=null;}
-  if(audioCtxLive){audioCtxLive.close(); audioCtxLive=null;}
-  startBtn.disabled=false; stopBtn.disabled=true;
-  document.getElementById('now').textContent = "-- Hz";
-}
+      const xcorr = (lag) => {
+        let s = 0;
+        for (let i = 0; i < N - lag; i++) s += buf[i] * buf[i + lag];
+        return s / (N - lag);
+      };
 
-startBtn.onclick = startLive;
-stopBtn.onclick = stopLive;
+      let bestLag = -1, best = 0;
+      for (let lag = minLag; lag <= maxLag; lag++) {
+        const c = xcorr(lag);
+        if (c > best) { best = c; bestLag = lag; }
+      }
+      if (bestLag < 0 || best < 0.1) return 0;
 
-// ===== 문장 연습 모드 =====
-const whButtons = document.querySelectorAll('.wh-button');
-const variantButtons = document.querySelectorAll('.variant-button');
-const sentText = document.getElementById('sent-text');
-const playNativeBtn = document.getElementById('play-native');
-const recordOnceBtn = document.getElementById('record-once');
-const feedbackEl = document.getElementById('feedback');
-
-const downloadAudioBtn = document.getElementById('download-audio');
-const downloadF0Btn = document.getElementById('download-f0');
-
-let practiceAudioCtx = null;
-let nativeAudioBuffer = null;
-
-let currentQuestionId = null;
-let currentVariant = null;
-
-let lastUserFloat = null;
-let lastUserSampleRate = null;
-let lastUserTrack = null;
-
-// 버튼 active 토글
-function setActiveButton(group, target){
-  group.forEach(b=>b.classList.toggle('active', b===target));
-}
-
-// 의문사 선택
-whButtons.forEach(btn=>{
-  btn.onclick = ()=>{
-    const id = btn.dataset.id;
-    currentQuestionId = id;
-    setActiveButton(whButtons, btn);
-    currentVariant = "yn";
-    setActiveButton(variantButtons, [...variantButtons].find(b=>b.dataset.variant==="yn"));
-    loadNative();
-  };
-});
-
-// 억양 유형 선택
-variantButtons.forEach(btn=>{
-  btn.onclick = ()=>{
-    if(!currentQuestionId){
-      alert("먼저 의문사를 선택해 주세요.");
-      return;
+      const c1 = xcorr(bestLag - 1), c2 = xcorr(bestLag), c3 = xcorr(bestLag + 1);
+      const denom = (c1 - 2 * c2 + c3);
+      let shift = 0;
+      if (Math.abs(denom) > 1e-6) shift = 0.5 * (c1 - c3) / denom;
+      return sr / (bestLag + shift);
     }
-    currentVariant = btn.dataset.variant;
-    setActiveButton(variantButtons, btn);
-    loadNative();
-  };
-});
 
-// 모범 음성 로드 + 문장 표시 + 모범 F0 계산
-async function loadNative(){
-  const q = QUESTION_CONFIG[currentQuestionId];
-  if(!q || !currentVariant){
-    feedbackEl.textContent = "의문사와 억양 유형을 먼저 선택해 주세요.";
-    return;
-  }
-  const audioPath = q.audio[currentVariant];
-  const sentence = q.sentence;
-  sentText.textContent = sentence + "  (" + (currentVariant==="yn" ? "판정 의문문" : "설명 의문문") + ")";
+    // ===== 공통: 그래프 그리기 =====
+    const c = document.getElementById('c');
+    const g = c.getContext('2d');
+    const livePoints = [];
+    const modelPoints = [];
+    const userPoints = [];
+    const maxPoints = 1000;
 
-  feedbackEl.textContent = "모범 음성을 불러오는 중입니다...";
-  try{
-    if(!practiceAudioCtx) practiceAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const res = await fetch(audioPath);
-    const arrBuf = await res.arrayBuffer();
-    nativeAudioBuffer = await practiceAudioCtx.decodeAudioData(arrBuf);
-
-    const nativeFloat = nativeAudioBuffer.getChannelData(0);
-    const nativeTrack = computeF0Track(nativeFloat, nativeAudioBuffer.sampleRate);
-    practiceNativePoints.length = 0;
-    practiceNativePoints.push(...nativeTrack);
-
-    feedbackEl.textContent = "모범 음성이 준비되었습니다. '모범 발음 재생' 후 '내 발음 녹음'을 해 보세요. 여러 번 연습해도 됩니다.";
-    playNativeBtn.disabled = false;
-    recordOnceBtn.disabled = false;
-  }catch(e){
-    console.error(e);
-    feedbackEl.textContent = "모범 음성을 불러오지 못했습니다. audio 폴더의 파일 경로를 확인하세요.";
-    playNativeBtn.disabled = true;
-    recordOnceBtn.disabled = true;
-  }
-}
-
-playNativeBtn.onclick = ()=>{
-  if(!nativeAudioBuffer || !practiceAudioCtx) return;
-  const src = practiceAudioCtx.createBufferSource();
-  src.buffer = nativeAudioBuffer;
-  src.connect(practiceAudioCtx.destination);
-  src.start();
-};
-
-// 1회 녹음 (연습/최종 모두 동일 로직, 마지막 결과가 남음)
-recordOnceBtn.onclick = async ()=>{
-  feedbackEl.textContent = "녹음을 시작합니다. 문장을 말해 주세요.";
-  let recStream;
-  try{
-    recStream = await navigator.mediaDevices.getUserMedia({audio:true});
-  }catch(e){
-    alert("마이크 권한이 필요합니다.");
-    return;
-  }
-  const recCtx = new (window.AudioContext||window.webkitAudioContext)();
-  const recSource = recCtx.createMediaStreamSource(recStream);
-  const recProcessor = recCtx.createScriptProcessor(2048,1,1);
-  const chunks = [];
-  recSource.connect(recProcessor);
-  recProcessor.connect(recCtx.destination);
-
-  let recording = true;
-  setTimeout(()=>{ recording=false; }, 3000);
-
-  recProcessor.onaudioprocess = (e)=>{
-    if(!recording){
-      recProcessor.disconnect(); recSource.disconnect();
-      recStream.getTracks().forEach(t=>t.stop());
-      const sr = recCtx.sampleRate;
-      recCtx.close();
-
-      processPractice(nativeAudioBuffer, chunks, sr);
-      recProcessor.onaudioprocess = null;
-      return;
+    function getFloor() {
+      return +document.getElementById('floor').value || 75;
     }
-    const buf = e.inputBuffer.getChannelData(0);
-    chunks.push(new Float32Array(buf));
-  };
-};
-
-function processPractice(nativeBuf, userChunks, userSr){
-  if(!nativeBuf){
-    feedbackEl.textContent = "모범 음성이 없습니다. 먼저 의문사와 억양 유형을 선택해 주세요.";
-    return;
-  }
-  if(!userChunks.length){
-    feedbackEl.textContent = "녹음된 음성이 없습니다. 다시 시도해 주세요.";
-    return;
-  }
-
-  const userLength = userChunks.reduce((s,cur)=>s+cur.length,0);
-  const userFloat = new Float32Array(userLength);
-  let offset = 0;
-  for(const ch of userChunks){
-    userFloat.set(ch, offset); offset += ch.length;
-  }
-
-  const nativeFloat = nativeBuf.getChannelData(0);
-  const nativeTrack = computeF0Track(nativeFloat, nativeBuf.sampleRate);
-  const userTrack = computeF0Track(userFloat, userSr);
-
-  practiceNativePoints.length = 0;
-  practiceUserPoints.length = 0;
-  practiceNativePoints.push(...nativeTrack);
-  practiceUserPoints.push(...userTrack);
-
-  lastUserFloat = userFloat;
-  lastUserSampleRate = userSr;
-  lastUserTrack = userTrack;
-
-  downloadAudioBtn.disabled = false;
-  downloadF0Btn.disabled = false;
-
-  const lastN = 10;
-  const u = userTrack.slice(-lastN).filter(x=>x>0);
-  const n = nativeTrack.slice(-lastN).filter(x=>x>0);
-  let msg = "발화가 저장되었습니다. 그래프에서 회색(모범)과 빨간 선(내 발화)을 비교해 보세요.";
-  if(u.length && n.length){
-    const uStart = u[0], uEnd = u[u.length-1];
-    const nStart = n[0], nEnd = n[n.length-1];
-    const uSlope = uEnd - uStart;
-    const nSlope = nEnd - nStart;
-    if(nSlope > 0 && uSlope <= 0){
-      msg += " (이 패턴은 판정 의문문 억양입니다. 문말 억양을 조금 더 올려 보세요.)";
-    }else if(nSlope < 0 && uSlope >= 0){
-      msg += " (이 패턴은 설명 의문문 억양입니다. 문말을 자연스럽게 내려 보세요.)";
-    }else{
-      msg += " 문말 억양의 방향은 모범과 비슷합니다. 전체 높낮이 대비를 조금 더 키워 보세요.";
+    function getCeil() {
+      return +document.getElementById('ceil').value || 400;
     }
-  }
-  feedbackEl.textContent = msg;
-  document.getElementById('now').textContent = "-- Hz";
-}
 
-// ===== 다운로드 =====
-function float32ToWavBlob(float32, sampleRate){
-  const buffer = new ArrayBuffer(44 + float32.length * 2);
-  const view = new DataView(buffer);
-
-  function writeString(offset, string){
-    for(let i=0;i<string.length;i++){
-      view.setUint8(offset+i, string.charCodeAt(i));
+    function mapF0(f, fmin, fmax) {
+      const clamped = Math.max(fmin, Math.min(fmax, f));
+      const r = (clamped - fmin) / (fmax - fmin);
+      return 244 - r * 220; // 위쪽이 높은 Hz
     }
-  }
 
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * bitsPerSample/8;
-  const blockAlign = numChannels * bitsPerSample/8;
+    function drawSeries(points, color, floor, ceil) {
+      const visible = points.slice(-maxPoints);
+      if (!visible.length) return;
+      g.strokeStyle = color;
+      g.beginPath();
+      let started = false;
+      for (let i = 0; i < visible.length; i++) {
+        const f0 = visible[i];
+        if (f0 <= 0) { started = false; continue; }
+        const x = 48 + (i / Math.max(visible.length - 1, 1)) * 1136;
+        const y = mapF0(f0, floor, ceil);
+        if (!started) { g.moveTo(x, y); started = true; }
+        else { g.lineTo(x, y); }
+      }
+      g.stroke();
+    }
 
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + float32.length * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
+    function draw() {
+      g.clearRect(0, 0, c.width, c.height);
 
-  writeString(36, 'data');
-  view.setUint32(40, float32.length * 2, true);
+      // 틀
+      g.strokeStyle = "#eee";
+      g.beginPath();
+      g.moveTo(48, 16);
+      g.lineTo(48, 244);
+      g.lineTo(1184, 244);
+      g.stroke();
 
-  let offset = 44;
-  for(let i=0;i<float32.length;i++){
-    let s = Math.max(-1, Math.min(1, float32[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    offset += 2;
-  }
+      const floor = getFloor();
+      const ceil = getCeil();
 
-  return new Blob([view], {type:'audio/wav'});
-}
+      [floor, (floor + ceil) / 2, ceil].forEach(t => {
+        const y = mapF0(t, floor, ceil);
+        g.strokeStyle = "#eee";
+        g.beginPath();
+        g.moveTo(48, y);
+        g.lineTo(1184, y);
+        g.stroke();
+        g.fillStyle = "#666";
+        g.font = "12px system-ui";
+        g.fillText(Math.round(t) + " Hz", 8, y - 2);
+      });
 
-function triggerDownload(blob, filename){
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+      // 데이터 시리즈
+      drawSeries(modelPoints, "#888888", floor, ceil); // 회색: 모범
+      drawSeries(userPoints, "#e65b5b", floor, ceil);  // 빨강: 내 발화
+      drawSeries(livePoints, "#0a74da", floor, ceil);  // 파랑: 실시간
 
-downloadAudioBtn.onclick = ()=>{
-  if(!lastUserFloat || !lastUserSampleRate){
-    alert("다운로드할 녹음이 없습니다. 먼저 녹음해 주세요.");
-    return;
-  }
-  const blob = float32ToWavBlob(lastUserFloat, lastUserSampleRate);
-  triggerDownload(blob, 'intonation_user_recording.wav');
-};
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
 
-downloadF0Btn.onclick = ()=>{
-  if(!lastUserTrack){
-    alert("F0 데이터가 없습니다. 먼저 녹음해 주세요.");
-    return;
-  }
-  const payload = {
-    timestamp: new Date().toISOString(),
-    sampleRate: lastUserSampleRate,
-    questionId: currentQuestionId,
-    variant: currentVariant,
-    f0Track: lastUserTrack,
-    note: "각 값은 프레임 단위 F0(Hz)이며, 0은 무성/검출 실패 구간입니다."
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
-  triggerDownload(blob, 'intonation_f0_data.json');
-};
+    // ===== 실시간 모드 (ver1.0 기반) =====
+    let audioCtxLive = null;
+    let sourceLive = null;
+    let processorLive = null;
+    let streamLive = null;
 
-// 초기 한 번 그려주기
-draw();
-</script>
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const nowEl = document.getElementById('now');
+
+    async function startLive() {
+      if (audioCtxLive) return; // 이미 실행 중
+      try {
+        streamLive = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        alert("마이크 권한이 필요합니다.");
+        return;
+      }
+
+      audioCtxLive = new (window.AudioContext || window.webkitAudioContext)();
+      sourceLive = audioCtxLive.createMediaStreamSource(streamLive);
+      processorLive = audioCtxLive.createScriptProcessor(2048, 1, 1);
+      sourceLive.connect(processorLive);
+      processorLive.connect(audioCtxLive.destination);
+
+      processorLive.onaudioprocess = (e) => {
+        const inbuf = e.inputBuffer.getChannelData(0);
+        const tmp = new Float32Array(inbuf); // 복사본
+        const f0 = autoCorrelate(tmp, audioCtxLive.sampleRate, getFloor(), getCeil());
+        livePoints.push(f0 > 0 ? f0 : 0);
+        if (livePoints.length > 5000) livePoints.shift();
+        nowEl.textContent = "현재 F0: " + (f0 ? Math.round(f0) + " Hz" : "-- Hz");
+      };
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    }
+
+    function stopLive() {
+      if (processorLive) {
+        processorLive.disconnect();
+        processorLive.onaudioprocess = null;
+        processorLive = null;
+      }
+      if (sourceLive) {
+        sourceLive.disconnect();
+        sourceLive = null;
+      }
+      if (streamLive) {
+        streamLive.getTracks().forEach(t => t.stop());
+        streamLive = null;
+      }
+      if (audioCtxLive) {
+        audioCtxLive.close();
+        audioCtxLive = null;
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      nowEl.textContent = "현재 F0: -- Hz";
+    }
+
+    startBtn.addEventListener('click', startLive);
+    stopBtn.addEventListener('click', stopLive);
+
+    // ===== 문장 연습 모드 =====
+    const sentenceDefs = {
+      "nugu_yn":  { file: "audio/nugu_yn.wav",  label: "누구 만나요? (판정)" },
+      "nugu_wh":  { file: "audio/nugu_wh.wav",  label: "누구 만나요? (설명)" },
+      "eodi_yn":  { file: "audio/eodi_yn.wav",  label: "어디 가요? (판정)" },
+      "eodi_wh":  { file: "audio/eodi_wh.wav",  label: "어디 가요? (설명)" },
+      "eonje_yn": { file: "audio/eonje_yn.wav", label: "언제 만날래요? (판정)" },
+      "eonje_wh": { file: "audio/eonje_wh.wav", label: "언제 만날래요? (설명)" },
+      "mwo_yn":   { file: "audio/mwo_yn.wav",   label: "뭐 먹을래요? (판정)" },
+      "mwo_wh":   { file: "audio/mwo_wh.wav",   label: "뭐 먹을래요? (설명)" }
+    };
+
+    const sentenceBuffers = {}; // key -> AudioBuffer
+    const sentBtns = document.querySelectorAll('.sent-btn');
+    let currentSentKey = null;
+
+    async function loadSentenceBuffer(key) {
+      if (!sentenceDefs[key]) return null;
+      if (sentenceBuffers[key]) return sentenceBuffers[key];
+
+      const def = sentenceDefs[key];
+      const resp = await fetch(def.file);
+      if (!resp.ok) {
+        alert("모범 발화 파일을 불러오지 못했습니다: " + def.file);
+        return null;
+      }
+      const arrayBuf = await resp.arrayBuffer();
+      const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = await tmpCtx.decodeAudioData(arrayBuf);
+      tmpCtx.close();
+      sentenceBuffers[key] = buffer;
+      return buffer;
+    }
+
+    async function updateModelF0(key) {
+      const buffer = await loadSentenceBuffer(key);
+      if (!buffer) return;
+      const data = buffer.getChannelData(0);
+      const sr = buffer.sampleRate;
+      const size = 2048;
+      const hop = 512;
+      const tmp = new Float32Array(size);
+      modelPoints.length = 0;
+
+      const floor = getFloor();
+      const ceil = getCeil();
+
+      for (let pos = 0; pos + size < data.length; pos += hop) {
+        for (let i = 0; i < size; i++) tmp[i] = data[pos + i];
+        const f0 = autoCorrelate(new Float32Array(tmp), sr, floor, ceil);
+        modelPoints.push(f0 > 0 ? f0 : 0);
+        if (modelPoints.length > 5000) break;
+      }
+    }
+
+    sentBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.sent;
+        currentSentKey = key;
+        sentBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        userPoints.length = 0; // 새 문장 선택 시 내 발화 초기화
+        await updateModelF0(key);
+      });
+    });
+
+    // 모범 발화 재생
+    const btnPlayModel = document.getElementById('btn-play-model');
+    btnPlayModel.addEventListener('click', async () => {
+      if (!currentSentKey) {
+        alert("먼저 연습할 문장을 선택해 주세요.");
+        return;
+      }
+      const buffer = await loadSentenceBuffer(currentSentKey);
+      if (!buffer) return;
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start();
+      src.onended = () => ctx.close();
+    });
+
+    // 연습 녹음
+    let pracCtx = null;
+    let pracSource = null;
+    let pracProcessor = null;
+    let pracStream = null;
+
+    const btnPracStart = document.getElementById('btn-prac-start');
+    const btnPracStop = document.getElementById('btn-prac-stop');
+
+    async function startPracticeRecording() {
+      if (!currentSentKey) {
+        alert("먼저 연습할 문장을 선택해 주세요.");
+        return;
+      }
+      if (pracCtx) return;
+
+      try {
+        pracStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        alert("마이크 권한이 필요합니다.");
+        return;
+      }
+      pracCtx = new (window.AudioContext || window.webkitAudioContext)();
+      pracSource = pracCtx.createMediaStreamSource(pracStream);
+      pracProcessor = pracCtx.createScriptProcessor(2048, 1, 1);
+      pracSource.connect(pracProcessor);
+      pracProcessor.connect(pracCtx.destination);
+
+      userPoints.length = 0;
+
+      pracProcessor.onaudioprocess = (e) => {
+        const inbuf = e.inputBuffer.getChannelData(0);
+        const tmp = new Float32Array(inbuf);
+        const f0 = autoCorrelate(tmp, pracCtx.sampleRate, getFloor(), getCeil());
+        userPoints.push(f0 > 0 ? f0 : 0);
+        if (userPoints.length > 5000) userPoints.shift();
+      };
+
+      btnPracStart.disabled = true;
+      btnPracStop.disabled = false;
+    }
+
+    function stopPracticeRecording() {
+      if (pracProcessor) {
+        pracProcessor.disconnect();
+        pracProcessor.onaudioprocess = null;
+        pracProcessor = null;
+      }
+      if (pracSource) {
+        pracSource.disconnect();
+        pracSource = null;
+      }
+      if (pracStream) {
+        pracStream.getTracks().forEach(t => t.stop());
+        pracStream = null;
+      }
+      if (pracCtx) {
+        pracCtx.close();
+        pracCtx = null;
+      }
+      btnPracStart.disabled = false;
+      btnPracStop.disabled = true;
+    }
+
+    btnPracStart.addEventListener('click', startPracticeRecording);
+    btnPracStop.addEventListener('click', stopPracticeRecording);
+  </script>
 </body>
 </html>
-
-
