@@ -90,7 +90,7 @@ function medianSmooth(arr, k=5){
   return out;
 }
 
-function trackPitch(signal, sr, floor, ceil, frameMs=30, hopMs=15){ // ★ hopMs 기본값 20ms
+function trackPitch(signal, sr, floor, ceil, frameMs=30, hopMs=17){ // ★ hopMs 기본값 20ms
   const frame = Math.round(sr*frameMs/1000), hop = Math.round(sr*hopMs/1000);
   const out=[]; const buf = new Float32Array(frame);
   for(let start=0; start+frame<=signal.length; start+=hop){
@@ -173,7 +173,7 @@ stopBtn.onclick = async () => {
 
     const floorHz = +document.getElementById('floor').value || 75;
     const ceilHz  = +document.getElementById('ceil').value  || 400;
-    const f0sRaw  = trackPitch(signal, audioBuf.sampleRate, floorHz, ceilHz, 30, 15); // ★ 여기서도 hopMs 20
+    const f0sRaw  = trackPitch(signal, audioBuf.sampleRate, floorHz, ceilHz, 30, 17); // ★ 여기서도 hopMs 20
     const k = +document.getElementById('smooth').value;
     const f0s = medianSmooth(f0sRaw, k);
 
@@ -201,4 +201,5 @@ resetBtn.onclick = ()=>{
 drawAxes(+floor.value, +ceil.value);
 </script>
 </html>
+
 
