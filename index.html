@@ -19,7 +19,10 @@
   .tab { display:none; }
   .tab.active { display:block; }
   #feedback { margin-top:8px; font-size:14px; color:#333; }
-  .sent-button { padding:6px 12px; border-radius:999px; border:1px solid #ddd; background:#fafafa; font-size:13px;}
+  .wh-button { padding:6px 12px; border-radius:999px; border:1px solid #ddd; background:#fafafa; font-size:13px;}
+  .wh-button.active { background:#0a74da; color:#fff; border-color:#0a74da;}
+  .variant-button { padding:6px 12px; border-radius:999px; border:1px solid #ddd; background:#f3f3f3; font-size:13px;}
+  .variant-button.active { background:#ff9500; color:#fff; border-color:#ff9500;}
   .meta { font-size:12px; color:#666; }
   .legend { font-size:12px; margin-top:6px; display:flex; flex-wrap:wrap; gap:12px;}
   .legend span { display:flex; align-items:center; gap:4px; }
@@ -67,29 +70,37 @@
 
 <!-- 탭 2: 문장 연습 모드 -->
 <div class="tab" id="tab-practice">
-  <h2>② 문장 연습 모드 (모범 억양 vs 내 억양 비교)</h2>
+  <h2>② 문장 연습 모드 (판정/설명 억양 비교)</h2>
 
+  <!-- (1) 의문사 선택 -->
   <div class="row">
-    <span class="pill-label">문장 선택</span>
-    <!-- 필요하면 문장 버튼을 더 복사해서 추가 -->
-    <button class="sent-button"
-            data-audio="audio/s1_native.wav"
-            data-text="오늘 어디에 가요?">
-      문장 1
-    </button>
+    <span class="pill-label">의문사 선택</span>
+    <button class="wh-button" data-id="nugu">누구</button>
+    <button class="wh-button" data-id="eodi">어디</button>
+    <button class="wh-button" data-id="mwo">뭐</button>
+    <button class="wh-button" data-id="eonje">언제</button>
   </div>
 
+  <!-- (2) 억양 유형 선택 -->
   <div class="row">
-    <div id="sent-text" class="meta">문장을 선택하면 여기 문장이 표시됩니다.</div>
+    <span class="pill-label">억양 유형</span>
+    <button class="variant-button" data-variant="yn">판정 의문문 (Y/N)</button>
+    <button class="variant-button" data-variant="wh">설명 의문문 (WH)</button>
   </div>
 
+  <!-- (3) 문장 표시 -->
+  <div class="row">
+    <div id="sent-text" class="meta">의문사와 억양 유형을 선택하면 문장이 표시됩니다.</div>
+  </div>
+
+  <!-- (4) 재생/녹음 -->
   <div class="row">
     <button id="play-native" disabled>모범 발음 재생</button>
     <button id="record-once" disabled>내 발음 녹음(1회)</button>
   </div>
 
   <p class="meta">
-    절차: ① 문장을 선택하고 ② 모범 발음을 여러 번 들어 본 뒤 ③ 내 발음을 녹음합니다.<br>
+    절차: ① 의문사를 선택하고 ② 판정/설명 억양을 선택한 뒤 ③ 모범 발음을 듣고 ④ 내 발화를 녹음합니다.<br>
     회색 선(모범)과 빨간 선(내 발화)의 F0 곡선을 비교하고, 간단한 피드백이 아래에 표시됩니다.
   </p>
 
@@ -119,25 +130,59 @@
 </div>
 
 <script>
+// ====== 연습 문장/파일 설정 (4 의문사 × 2 억양) ======
+const QUESTION_CONFIG = {
+  nugu: {
+    label: "누구",
+    sentence: "누구 만나요?",
+    audio: {
+      yn: "audio/nugu_yn.wav",
+      wh: "audio/nugu_wh.wav"
+    }
+  },
+  eodi: {
+    label: "어디",
+    sentence: "어디 가요?",
+    audio: {
+      yn: "audio/eodi_yn.wav",
+      wh: "audio/eodi_wh.wav"
+    }
+  },
+  mwo: {
+    label: "뭐",
+    sentence: "뭐 해요?",
+    audio: {
+      yn: "audio/mwo_yn.wav",
+      wh: "audio/mwo_wh.wav"
+    }
+  },
+  eonje: {
+    label: "언제",
+    sentence: "언제 만나요?",
+    audio: {
+      yn: "audio/eonje_yn.wav",
+      wh: "audio/eonje_wh.wav"
+    }
+  }
+};
+
 // ====== 공통 변수 및 유틸 ======
 let audioCtx, source, processor, stream, animId;
 const c = document.getElementById('c'), g = c.getContext('2d');
-const livePoints = [];             // 실시간 모드 F0
-const practiceUserPoints = [];     // 연습 모드: 이번 녹음 F0
-const practiceNativePoints = [];   // 연습 모드: 모범 F0
+const livePoints = [];
+const practiceUserPoints = [];
+const practiceNativePoints = [];
 const maxPoints = 1000;
 
-// 연습 모드: 다운로드 / Before/After용 원본 데이터 보관
-let lastUserFloat = null;          // Float32Array (원음)
+let lastUserFloat = null;
 let lastUserSampleRate = null;
-let lastUserTrack = null;          // F0 배열
+let lastUserTrack = null;
 let beforeTrack = null;
 let afterTrack = null;
 
 function getFloor() { return +document.getElementById('floor').value || 75; }
 function getCeil()  { return +document.getElementById('ceil').value || 400; }
 
-// === 자동상관 기반 F0 추정 ===
 function autoCorrelate(buf, sr, floor=75, ceil=400){
   const N = buf.length;
   let mean=0; for(let i=0;i<N;i++) mean+=buf[i]; mean/=N;
@@ -155,7 +200,6 @@ function autoCorrelate(buf, sr, floor=75, ceil=400){
   return sr/(bestLag+shift);
 }
 
-// 오디오 전체에서 F0 트랙 계산 (프레임 단위)
 function computeF0Track(floatBuf, sr, frameSize=2048, hopSize=512){
   const floor = getFloor(), ceil = getCeil();
   const len = floatBuf.length;
@@ -168,12 +212,10 @@ function computeF0Track(floatBuf, sr, frameSize=2048, hopSize=512){
   return f0s;
 }
 
-// ==== 캔버스 그리기 ====
 function draw(){
   g.clearRect(0,0,c.width,c.height);
   const floor = getFloor(), ceil = getCeil();
 
-  // 축/눈금
   g.strokeStyle="#eee";
   g.beginPath(); g.moveTo(48,16); g.lineTo(48,244); g.lineTo(1184,244); g.stroke();
   [floor,(floor+ceil)/2,ceil].forEach(t=>{
@@ -182,13 +224,8 @@ function draw(){
     g.fillStyle="#666"; g.font="12px system-ui"; g.fillText(Math.round(t)+" Hz",8,y-2);
   });
 
-  // 실시간 F0 (파란색)
   drawTrack(livePoints, "#0a74da", floor, ceil);
-
-  // 연습 모드: 모범 F0 (회색)
   drawTrack(practiceNativePoints, "#888888", floor, ceil);
-
-  // 연습 모드: 내 발화 F0 (빨강)
   drawTrack(practiceUserPoints, "#ff6666", floor, ceil);
 
   animId = requestAnimationFrame(draw);
@@ -216,7 +253,7 @@ function drawTrack(arr, color, floor, ceil){
   g.stroke();
 }
 
-// === 탭 전환 ===
+// 탭 전환
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabs = {
   live: document.getElementById('tab-live'),
@@ -239,21 +276,15 @@ const startBtn=document.getElementById('start'),
 
 async function startLive(){
   try{
-    // 1) 마이크 권한 요청
     stream = await navigator.mediaDevices.getUserMedia({audio:true});
   }catch(e){
     alert("마이크 권한이 필요합니다. 설정에서 이 사이트의 마이크 접근을 허용해 주세요.");
     return;
   }
 
-  // 2) AudioContext 생성 및 iOS/Safari 대응
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === "suspended") {
-    try {
-      await audioCtx.resume();
-    } catch (e) {
-      console.error("AudioContext resume 실패:", e);
-    }
+    try { await audioCtx.resume(); } catch (e) { console.error(e); }
   }
 
   source = audioCtx.createMediaStreamSource(stream);
@@ -285,7 +316,8 @@ startBtn.onclick=startLive;
 stopBtn.onclick=stopLive;
 
 // ===== 문장 연습 모드 =====
-const sentButtons = document.querySelectorAll('.sent-button');
+const whButtons = document.querySelectorAll('.wh-button');
+const variantButtons = document.querySelectorAll('.variant-button');
 const sentText = document.getElementById('sent-text');
 const playNativeBtn = document.getElementById('play-native');
 const recordOnceBtn = document.getElementById('record-once');
@@ -299,37 +331,74 @@ const saveAfterBtn = document.getElementById('save-after');
 let practiceAudioCtx = null;
 let nativeAudioBuffer = null;
 
-sentButtons.forEach(btn=>{
-  btn.onclick = async ()=>{
-    const audioPath = btn.dataset.audio;
-    const text = btn.dataset.text || "";
-    sentText.textContent = text;
+let currentQuestionId = null;
+let currentVariant = null;
 
-    // 모범 음성 로드
-    feedbackEl.textContent = "모범 음성을 불러오는 중입니다...";
-    try{
-      if(!practiceAudioCtx) practiceAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
-      const res = await fetch(audioPath);
-      const arrBuf = await res.arrayBuffer();
-      nativeAudioBuffer = await practiceAudioCtx.decodeAudioData(arrBuf);
+function setActiveButton(group, target){
+  group.forEach(b=>b.classList.toggle('active', b===target));
+}
 
-      // 모범 음성 F0 트랙 미리 계산
-      const nativeFloat = nativeAudioBuffer.getChannelData(0);
-      const nativeTrack = computeF0Track(nativeFloat, nativeAudioBuffer.sampleRate);
-      practiceNativePoints.length = 0;
-      practiceNativePoints.push(...nativeTrack);
+// 의문사 선택
+whButtons.forEach(btn=>{
+  btn.onclick = ()=>{
+    const id = btn.dataset.id;
+    currentQuestionId = id;
+    setActiveButton(whButtons, btn);
 
-      feedbackEl.textContent = "모범 음성이 준비되었습니다. '모범 발음 재생'을 눌러 들어 보세요.";
-      playNativeBtn.disabled = false;
-      recordOnceBtn.disabled = false;
-    }catch(e){
-      console.error(e);
-      feedbackEl.textContent = "모범 음성을 불러오지 못했습니다. audio/s1_native.wav 경로를 확인하세요.";
-      playNativeBtn.disabled = true;
-      recordOnceBtn.disabled = true;
-    }
+    // 기본으로 판정 의문문 선택
+    currentVariant = "yn";
+    setActiveButton(variantButtons, [...variantButtons].find(b=>b.dataset.variant==="yn"));
+
+    loadNative();
   };
 });
+
+// 억양 유형 선택
+variantButtons.forEach(btn=>{
+  btn.onclick = ()=>{
+    if(!currentQuestionId){
+      alert("먼저 의문사를 선택해 주세요.");
+      return;
+    }
+    currentVariant = btn.dataset.variant;
+    setActiveButton(variantButtons, btn);
+    loadNative();
+  };
+});
+
+// 모범 음성 로드 + 문장 표시 + 모범 F0 계산
+async function loadNative(){
+  const q = QUESTION_CONFIG[currentQuestionId];
+  if(!q || !currentVariant){
+    feedbackEl.textContent = "의문사와 억양 유형을 먼저 선택해 주세요.";
+    return;
+  }
+  const audioPath = q.audio[currentVariant];
+  const sentence = q.sentence;
+  sentText.textContent = sentence + "  (" + (currentVariant==="yn" ? "판정 의문문" : "설명 의문문") + ")";
+
+  feedbackEl.textContent = "모범 음성을 불러오는 중입니다...";
+  try{
+    if(!practiceAudioCtx) practiceAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const res = await fetch(audioPath);
+    const arrBuf = await res.arrayBuffer();
+    nativeAudioBuffer = await practiceAudioCtx.decodeAudioData(arrBuf);
+
+    const nativeFloat = nativeAudioBuffer.getChannelData(0);
+    const nativeTrack = computeF0Track(nativeFloat, nativeAudioBuffer.sampleRate);
+    practiceNativePoints.length = 0;
+    practiceNativePoints.push(...nativeTrack);
+
+    feedbackEl.textContent = "모범 음성이 준비되었습니다. '모범 발음 재생'을 누른 뒤, '내 발음 녹음'을 해 보세요.";
+    playNativeBtn.disabled = false;
+    recordOnceBtn.disabled = false;
+  }catch(e){
+    console.error(e);
+    feedbackEl.textContent = "모범 음성을 불러오지 못했습니다. audio 폴더의 파일 경로를 확인하세요.";
+    playNativeBtn.disabled = true;
+    recordOnceBtn.disabled = true;
+  }
+}
 
 playNativeBtn.onclick = ()=>{
   if(!nativeAudioBuffer || !practiceAudioCtx) return;
@@ -339,7 +408,7 @@ playNativeBtn.onclick = ()=>{
   src.start();
 };
 
-// 1회 녹음 후 F0 비교
+// 1회 녹음
 recordOnceBtn.onclick = async ()=>{
   feedbackEl.textContent = "녹음을 시작합니다. 3초 동안 문장을 말해 주세요.";
   let recStream;
@@ -357,7 +426,7 @@ recordOnceBtn.onclick = async ()=>{
   recProcessor.connect(recCtx.destination);
 
   let recording = true;
-  setTimeout(()=>{ recording=false; }, 3000); // 3초 녹음
+  setTimeout(()=>{ recording=false; }, 3000);
 
   recProcessor.onaudioprocess = (e)=>{
     if(!recording){
@@ -375,10 +444,9 @@ recordOnceBtn.onclick = async ()=>{
   };
 };
 
-// 모범/내 발화 F0 계산 + 피드백 + 다운로드용 데이터 보관
 function processPractice(nativeBuf, userChunks, userSr){
   if(!nativeBuf){
-    feedbackEl.textContent = "모범 음성이 없습니다. 먼저 문장을 선택해 주세요.";
+    feedbackEl.textContent = "모범 음성이 없습니다. 먼저 의문사와 억양 유형을 선택해 주세요.";
     return;
   }
   if(!userChunks.length){
@@ -386,7 +454,6 @@ function processPractice(nativeBuf, userChunks, userSr){
     return;
   }
 
-  // === 사용자 녹음 Float32 병합 ===
   const userLength = userChunks.reduce((s,cur)=>s+cur.length,0);
   const userFloat = new Float32Array(userLength);
   let offset = 0;
@@ -394,7 +461,6 @@ function processPractice(nativeBuf, userChunks, userSr){
     userFloat.set(ch, offset); offset += ch.length;
   }
 
-  // === F0 트랙 계산 ===
   const nativeFloat = nativeBuf.getChannelData(0);
   const nativeTrack = computeF0Track(nativeFloat, nativeBuf.sampleRate);
   const userTrack = computeF0Track(userFloat, userSr);
@@ -404,18 +470,15 @@ function processPractice(nativeBuf, userChunks, userSr){
   practiceNativePoints.push(...nativeTrack);
   practiceUserPoints.push(...userTrack);
 
-  // 다운로드 / Before/After용 원본 데이터 보관
   lastUserFloat = userFloat;
   lastUserSampleRate = userSr;
   lastUserTrack = userTrack;
 
-  // 버튼 활성화
   downloadAudioBtn.disabled = false;
   downloadF0Btn.disabled = false;
   saveBeforeBtn.disabled = false;
   saveAfterBtn.disabled = false;
 
-  // === 간단한 문말 피드백 ===
   const lastN = 10;
   const u = userTrack.slice(-lastN).filter(x=>x>0);
   const n = nativeTrack.slice(-lastN).filter(x=>x>0);
@@ -426,20 +489,18 @@ function processPractice(nativeBuf, userChunks, userSr){
     const uSlope = uEnd - uStart;
     const nSlope = nEnd - nStart;
     if(nSlope > 0 && uSlope <= 0){
-      msg += " 판정 의문문에서 문말 억양이 충분히 올라가지 않았습니다. 마지막 음절을 더 올려 보세요.";
+      msg += " (이 패턴은 판정 의문문 억양입니다. 문말 억양을 조금 더 올려 보세요.)";
     }else if(nSlope < 0 && uSlope >= 0){
-      msg += " 설명 의문문에서 문말 억양이 지나치게 올라가 있습니다. 마지막 부분을 자연스럽게 내려 보세요.";
+      msg += " (이 패턴은 설명 의문문 억양입니다. 문말을 자연스럽게 내려 보세요.)";
     }else{
-      msg += " 문말 억양의 방향은 모범 발음과 유사합니다. 전체적인 높낮이 대비를 조금 더 키워 보면 좋겠습니다.";
+      msg += " 문말 억양의 방향은 모범과 비슷합니다. 전체 높낮이 대비를 조금 더 키워 보세요.";
     }
   }
   feedbackEl.textContent = msg;
   document.getElementById('now').textContent = "-- Hz";
 }
 
-// ===== WAV/JSON 다운로드 & Before/After 저장 =====
-
-// Float32 → WAV Blob 변환
+// ===== 다운로드 & Before/After =====
 function float32ToWavBlob(float32, sampleRate){
   const buffer = new ArrayBuffer(44 + float32.length * 2);
   const view = new DataView(buffer);
@@ -455,20 +516,18 @@ function float32ToWavBlob(float32, sampleRate){
   const byteRate = sampleRate * numChannels * bitsPerSample/8;
   const blockAlign = numChannels * bitsPerSample/8;
 
-  // RIFF header
   writeString(0, 'RIFF');
   view.setUint32(4, 36 + float32.length * 2, true);
   writeString(8, 'WAVE');
   writeString(12, 'fmt ');
-  view.setUint32(16, 16, true); // PCM chunk size
-  view.setUint16(20, 1, true);  // PCM format
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);
   view.setUint16(32, blockAlign, true);
   view.setUint16(34, bitsPerSample, true);
 
-  // data
   writeString(36, 'data');
   view.setUint32(40, float32.length * 2, true);
 
@@ -482,7 +541,6 @@ function float32ToWavBlob(float32, sampleRate){
   return new Blob([view], {type:'audio/wav'});
 }
 
-// 공통 다운로드 함수
 function triggerDownload(blob, filename){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -494,7 +552,6 @@ function triggerDownload(blob, filename){
   URL.revokeObjectURL(url);
 }
 
-// 이번 녹음 음성 다운로드
 downloadAudioBtn.onclick = ()=>{
   if(!lastUserFloat || !lastUserSampleRate){
     alert("다운로드할 녹음이 없습니다. 먼저 녹음해 주세요.");
@@ -504,7 +561,6 @@ downloadAudioBtn.onclick = ()=>{
   triggerDownload(blob, 'intonation_user_recording.wav');
 };
 
-// F0 JSON 다운로드 (이번 녹음 + 선택적 Before/After)
 downloadF0Btn.onclick = ()=>{
   if(!lastUserTrack){
     alert("F0 데이터가 없습니다. 먼저 녹음해 주세요.");
@@ -512,26 +568,24 @@ downloadF0Btn.onclick = ()=>{
   }
   const payload = {
     sampleRate: lastUserSampleRate,
+    questionId: currentQuestionId,
+    variant: currentVariant,
     f0Track_current: lastUserTrack,
     f0Track_before: beforeTrack || null,
     f0Track_after: afterTrack || null,
     note: "각 배열의 값은 프레임 단위 F0(Hz)입니다. 0은 무성/검출 실패 구간입니다."
   };
-  const blob = new Blob(
-    [JSON.stringify(payload, null, 2)],
-    {type:'application/json'}
-  );
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   triggerDownload(blob, 'intonation_f0_data.json');
 };
 
-// 이번 녹음을 Before / After로 저장
 saveBeforeBtn.onclick = ()=>{
   if(!lastUserTrack){
     alert("먼저 녹음을 해 주세요.");
     return;
   }
   beforeTrack = [...lastUserTrack];
-  alert("이번 녹음을 Before로 저장했습니다. F0 JSON 다운로드 시 함께 포함됩니다.");
+  alert("이번 녹음을 Before로 저장했습니다.");
 };
 
 saveAfterBtn.onclick = ()=>{
@@ -540,10 +594,9 @@ saveAfterBtn.onclick = ()=>{
     return;
   }
   afterTrack = [...lastUserTrack];
-  alert("이번 녹음을 After로 저장했습니다. F0 JSON 다운로드 시 함께 포함됩니다.");
+  alert("이번 녹음을 After로 저장했습니다.");
 };
 
-// 최초 draw 시작
 draw();
 </script>
 </body>
