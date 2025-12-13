@@ -22,9 +22,19 @@
   <button id="reset" disabled>Reset</button>
   <!-- CSV 다운로드 / 공유 버튼 추가 -->
   <button id="download" disabled>CSV 다운로드</button>
-  <label>Floor(Hz) <input id="floor" type="number" value="75" min="40" max="200"></label>
-  <label>Ceiling(Hz) <input id="ceil" type="number" value="400" min="200" max="800"></label>
-  <label>Smoothing <input id="smooth" type="number" value="5" min="1" max="21" step="2"></label>
+</div>
+
+<!-- 설정값( Floor / Ceiling / Smoothing )은 숨김 -->
+<div class="row" style="display:none">
+  <label>Floor(Hz)
+    <input id="floor" type="number" value="75" min="40" max="200">
+  </label>
+  <label>Ceiling(Hz)
+    <input id="ceil" type="number" value="400" min="200" max="800">
+  </label>
+  <label>Smoothing
+    <input id="smooth" type="number" value="5" min="1" max="21" step="2">
+  </label>
 </div>
 <canvas id="c" width="1200" height="260"></canvas>
 <div class="row"><div id="now">F0: -- Hz</div><small id="status">준비 완료</small></div>
@@ -298,3 +308,4 @@ downloadBtn.onclick = async () => {
 drawAxes(+floor.value, +ceil.value);
 </script>
 </html>
+
