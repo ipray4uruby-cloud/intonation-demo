@@ -90,7 +90,7 @@
 <div class="row">
   <button id="btn-play-model" disabled>모범 억양 듣기</button>
   <button id="btn-prac-start" disabled>연습 녹음 Start</button>
-  <button id="btn-prac-stop" disabled>연습 녹음 Stop</button>
+  <button id="btn-prac-stop"  disabled>연습 녹음 Stop</button>
   <span id="now" style="font-size:13px;color:#333;">현재 F0: -- Hz</span>
 </div>
 <div class="row">
@@ -126,6 +126,16 @@ const nowEl       = document.getElementById('now');
 const statusEl    = document.getElementById('status');
 
 function setStatus(msg){ statusEl.textContent = " · " + msg; }
+
+// ===== 오디오 분석용 AudioContext (index와 동일 계열) =====
+let audioCtx = null;
+async function ensureAudioContext(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === "suspended"){
+    try { await audioCtx.resume(); } catch(e){}
+  }
+  return audioCtx;
+}
 
 // ===== Pitch tracking 함수 (index와 동일 계열) =====
 function hannWindow(N){
@@ -218,7 +228,7 @@ function drawAxes(floor, ceil){
 
 function drawSeries(points, color, floor, ceil){
   if(!points.length) return;
-  const visible = points; // 필요시 slice(-maxPoints)로 제한 가능
+  const visible = points;
   g.strokeStyle=color;
   g.lineWidth=2;
   g.beginPath();
@@ -339,14 +349,13 @@ btnPlayModel.addEventListener('click', async ()=>{
   src.onended = ()=> ctx.close();
 });
 
-// ========================= 연습 녹음 (실시간 F0 추적) =========================
-let pracCtx = null;
-let pracSource = null;
-let pracProcessor = null;
-let pracStream = null;
-
+// ========================= 연습 녹음: index와 동일한 Start–Stop 방식 =========================
 const btnPracStart = document.getElementById('btn-prac-start');
 const btnPracStop  = document.getElementById('btn-prac-stop');
+
+let pracStream = null;
+let pracRecorder = null;
+let pracChunks = [];
 
 btnPracStart.addEventListener('click', startPracticeRecording);
 btnPracStop.addEventListener('click', stopPracticeRecording);
@@ -356,69 +365,103 @@ async function startPracticeRecording(){
     alert("먼저 연습할 문장을 선택해 주세요.");
     return;
   }
-  if(pracCtx) return; // 이미 녹음 중이면 무시
+  if(pracRecorder) return; // 이미 녹음 중이면 무시
 
   try {
+    await ensureAudioContext(); // 모바일에서 user gesture 후 resume
     pracStream = await navigator.mediaDevices.getUserMedia({
       audio: {channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:false}
     });
   } catch(e){
-    alert("마이크 권한이 필요합니다.");
+    alert("마이크 권한이 필요합니다.\n(HTTPS 환경에서만 작동)");
     console.error(e);
     return;
   }
 
-  pracCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if(pracCtx.state === 'suspended'){
-    try{ await pracCtx.resume(); }catch(e){}
-  }
+  pracChunks = [];
+  const mime =
+    MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
+    MediaRecorder.isTypeSupported("audio/mp4")               ? "audio/mp4" :
+    "";
 
-  pracSource = pracCtx.createMediaStreamSource(pracStream);
-  pracProcessor = pracCtx.createScriptProcessor(2048, 1, 1);
-  pracSource.connect(pracProcessor);
-  pracProcessor.connect(pracCtx.destination);
-
-  userPoints.length = 0;
-  setStatus("연습 녹음 중… 문장을 한 번 자연스럽게 말해 보세요.");
-
-  pracProcessor.onaudioprocess = (e)=>{
-    const inbuf = e.inputBuffer.getChannelData(0);
-    const tmp   = new Float32Array(inbuf); // 복사
-    const floor = +floorInput.value || 75;
-    const ceil  = +ceilInput.value  || 400;
-    const f0    = f0_from_frame(tmp, pracCtx.sampleRate, floor, ceil);
-    const val   = f0>0 ? f0 : 0;
-    userPoints.push(val);
-    if(userPoints.length > 5000) userPoints.shift();
-    nowEl.textContent = "현재 F0: " + (f0 ? Math.round(f0) + " Hz" : "-- Hz");
+  pracRecorder = new MediaRecorder(pracStream, mime ? { mimeType: mime } : {});
+  pracRecorder.ondataavailable = (ev)=>{
+    if(ev.data && ev.data.size>0) pracChunks.push(ev.data);
+  };
+  pracRecorder.onstart = ()=>{
+    setStatus("연습 녹음 중… 문장을 자연스럽게 한 번 말해 보세요.");
+    nowEl.textContent = "현재 F0: -- Hz";
+    userPoints.length = 0;
   };
 
+  pracRecorder.start();
   btnPracStart.disabled = true;
   btnPracStop.disabled  = false;
 }
 
 function stopPracticeRecording(){
-  if(pracProcessor){
-    pracProcessor.disconnect();
-    pracProcessor.onaudioprocess = null;
-    pracProcessor = null;
-  }
-  if(pracSource){
-    pracSource.disconnect();
-    pracSource = null;
-  }
-  if(pracStream){
-    pracStream.getTracks().forEach(t=>t.stop());
-    pracStream = null;
-  }
-  if(pracCtx){
-    pracCtx.close();
-    pracCtx = null;
-  }
-  setStatus("연습 녹음 완료. 하늘색 곡선을 모범 곡선과 비교해 보세요.");
-  nowEl.textContent = "현재 F0: -- Hz";
-  btnPracStart.disabled = false;
-  btnPracStop.disabled  = true;
+  if(!pracRecorder) return;
+
+  btnPracStop.disabled = true;
+  setStatus("연습 발화를 분석하는 중입니다…");
+
+  pracRecorder.onstop = async ()=>{
+    try {
+      const blob = new Blob(pracChunks);
+      pracChunks = [];
+      const arrayBuf = await blob.arrayBuffer();
+      const ctx = await ensureAudioContext();
+      const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+
+      const ch = audioBuf.numberOfChannels
+        ? audioBuf.getChannelData(0)
+        : new Float32Array(arrayBuf.byteLength/4);
+
+      const signal = new Float32Array(ch.length);
+      let peak = 0;
+      for(let i=0;i<ch.length;i++){
+        const v = Math.max(-1, Math.min(1, ch[i]));
+        peak = Math.max(peak, Math.abs(v));
+        signal[i] = v;
+      }
+      if(peak>0){
+        const s = 1/peak;
+        for(let i=0;i<signal.length;i++) signal[i]*=s;
+      }
+
+      const floorHz = +floorInput.value  || 75;
+      const ceilHz  = +ceilInput.value   || 400;
+      const k       = +smoothInput.value || 5;
+
+      const f0raw = trackPitch(signal, audioBuf.sampleRate, floorHz, ceilHz, FRAME_MS, HOP_MS);
+      const f0    = medianSmooth(f0raw, k);
+
+      userPoints.length = 0;
+      for(let i=0;i<f0.length;i++) userPoints.push(f0[i]);
+
+      const last = (()=>{
+        for(let i=f0.length-1;i>=0;i--){
+          if(f0[i]>0) return f0[i];
+        }
+        return 0;
+      })();
+      nowEl.textContent = "현재 F0: " + (last ? Math.round(last) : "--") + " Hz";
+
+      setStatus("연습 녹음 완료. 하늘색 곡선을 모범 곡선과 비교해 보세요.");
+    } catch(e){
+      console.error(e);
+      setStatus("분석 중 오류가 발생했습니다.");
+    }
+
+    if(pracStream){
+      pracStream.getTracks().forEach(t=>t.stop());
+      pracStream = null;
+    }
+    pracRecorder = null;
+    btnPracStart.disabled = false;
+  };
+
+  pracRecorder.stop();
 }
 </script>
 </html>
