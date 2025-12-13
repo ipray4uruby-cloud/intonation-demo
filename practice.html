@@ -162,7 +162,7 @@ function f0_from_frame(buf, sr, floor, ceil){
     buf[i] = v;
   }
   rms = Math.sqrt(rms/N);
-  if(rms < 0.005) return 0; // 감도: index와 동일
+  if(rms < 0.007) return 0; // 감도: index와 동일
 
   const minLag = Math.floor(sr/ceil);
   const maxLag = Math.floor(sr/floor);
@@ -205,9 +205,16 @@ function trackPitch(signal, sr, floor, ceil, frameMs=FRAME_MS, hopMs=HOP_MS){
   const frame = Math.round(sr*frameMs/1000),
         hop   = Math.round(sr*hopMs/1000);
   const out=[]; const buf = new Float32Array(frame);
-  for(let start=0; start+frame<=signal.length; start+=hop){
-    buf.set(signal.subarray(start,start+frame));
-    out.push(f0_from_frame(buf.slice(0), sr, floor, ceil));
+  for (let start = 0; start + frame <= signal.length; start += hop) {
+    buf.set(signal.subarray(start, start + frame));
+    let f0 = f0_from_frame(buf.slice(0), sr, floor, ceil);
+
+    // 🔹 천장(ceil)에 거의 붙은 비정상적으로 높은 값은 노이즈로 보고 버리기
+    if (f0 > ceil * 0.9) {   // 예: ceil=600이면 540Hz 이상은 0으로
+      f0 = 0;
+    }
+
+    out.push(f0);
   }
   return out;
 }
