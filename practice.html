@@ -332,21 +332,31 @@ sentBtns.forEach(btn=>{
 
 // ========================= 모범 억양 재생 =========================
 const btnPlayModel = document.getElementById('btn-play-model');
-
-btnPlayModel.addEventListener('click', async ()=>{
-  if(!currentSentKey){
+btnPlayModel.addEventListener('click', async () => {
+  if (!currentSentKey) {
     alert("먼저 연습할 문장을 선택해 주세요.");
     return;
   }
+
   const buffer = await loadSentenceBuffer(currentSentKey);
-  if(!buffer) return;
+  if (!buffer) return;
 
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // ⭐ iOS/Safari에서 재생되도록 오디오 컨텍스트 깨우기
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume();
+    } catch (e) {
+      console.error("AudioContext resume 실패:", e);
+    }
+  }
+
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.connect(ctx.destination);
   src.start();
-  src.onended = ()=> ctx.close();
+  src.onended = () => ctx.close();
 });
 
 // ========================= 연습 녹음: index와 동일한 Start–Stop 방식 =========================
