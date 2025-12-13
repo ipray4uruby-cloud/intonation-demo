@@ -120,6 +120,13 @@
   </span>
 </div>
 
+<!-- ⬇⬇⬇ 저작권 / 연구용 안내 footer (추가) -->
+<footer style="margin-top:16px;font-size:11px;color:#888;text-align:center;">
+  © 2025 함미영. Korean intonation training web app (in preparation).
+  연구·교육 목적으로 실험 중인 앱으로 그외 이용을 불허합니다.
+</footer>
+<!-- ⬆⬆⬆ 여기까지 추가 -->
+
 <script>
 // ========================= 공통 설정 =========================
 const FRAME_MS = 30;
@@ -554,4 +561,23 @@ shareBtn.addEventListener('click', async () => {
   alert("CSV 파일이 저장되었습니다. 파일 앱에서 열어 카카오톡으로 보내 주세요.");
 });
 </script>
+
+<!-- ⬇⬇⬇ 오른쪽 클릭 / 단축키 일부 방지 스크립트 (추가) -->
+<script>
+document.addEventListener('contextmenu', function (e) {
+  e.preventDefault();
+});
+
+document.addEventListener('keydown', function (e) {
+  if (
+    e.key === 'F12' ||
+    (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+    (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
+  ) {
+    e.preventDefault();
+  }
+});
+</script>
+<!-- ⬆⬆⬆ 여기까지 추가 -->
+
 </html>
