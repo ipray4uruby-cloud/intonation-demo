@@ -112,13 +112,14 @@
   <span id="status"></span>
 </div>
 
- <!-- 실시간 F0 모드로 이동 링크 -->
+<!-- CSV를 바로 카카오톡 등으로 공유 -->
 <div class="row" style="margin-top:12px;">
-  <button onclick="window.location.href='index.html'">
-    실시간 억양(F0) 최종 제출로 이동
-  </button>
-</div> 
-  
+  <button id="shareCsv">CSV 카카오톡으로 보내기</button>
+  <span style="font-size:12px;color:#666;">
+    (연습 후 이 버튼을 눌러 카톡/메일로 보내 주세요)
+  </span>
+</div>
+
 <script>
 // ========================= 공통 설정 =========================
 const FRAME_MS = 30;
@@ -131,6 +132,7 @@ const ceilInput   = document.getElementById('ceil');
 const smoothInput = document.getElementById('smooth');
 const nowEl       = document.getElementById('now');
 const statusEl    = document.getElementById('status');
+const shareBtn    = document.getElementById('shareCsv');
 
 function setStatus(msg){ statusEl.textContent = " · " + msg; }
 
@@ -144,7 +146,7 @@ async function ensureAudioContext(){
   return audioCtx;
 }
 
-// ===== Pitch tracking 함수 (index와 동일 계열) =====
+// ===== Pitch tracking 함수 =====
 function hannWindow(N){
   const w = new Float32Array(N);
   for(let i=0;i<N;i++) w[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(N-1));
@@ -162,7 +164,7 @@ function f0_from_frame(buf, sr, floor, ceil){
     buf[i] = v;
   }
   rms = Math.sqrt(rms/N);
-  if(rms < 0.007) return 0; // 감도: index와 동일
+  if(rms < 0.007) return 0; // 너무 작은 소리는 0
 
   const minLag = Math.floor(sr/ceil);
   const maxLag = Math.floor(sr/floor);
@@ -209,8 +211,8 @@ function trackPitch(signal, sr, floor, ceil, frameMs=FRAME_MS, hopMs=HOP_MS){
     buf.set(signal.subarray(start, start + frame));
     let f0 = f0_from_frame(buf.slice(0), sr, floor, ceil);
 
-    // 🔹 천장(ceil)에 거의 붙은 비정상적으로 높은 값은 노이즈로 보고 버리기
-    if (f0 > ceil * 0.9) {   // 예: ceil=600이면 540Hz 이상은 0으로
+    // 천장 근처 이상치는 노이즈로 보고 버리기
+    if (f0 > ceil * 0.9) {
       f0 = 0;
     }
 
@@ -262,7 +264,7 @@ function drawSeries(points, color, floor, ceil){
 
 function draw(){
   const floor = +floorInput.value || 75;
-  const ceil  = +ceilInput.value  || 400;
+  const ceil  = +ceilInput.value  || 400; // 값은 600이 들어가 있으니 괜찮음
   drawAxes(floor, ceil);
   // 모범 = 회색, 나 = 하늘색
   drawSeries(modelPoints, "#888888", floor, ceil);
@@ -357,7 +359,6 @@ btnPlayModel.addEventListener('click', async () => {
 
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // ⭐ iOS/Safari에서 재생되도록 오디오 컨텍스트 깨우기
   if (ctx.state === 'suspended') {
     try {
       await ctx.resume();
@@ -373,7 +374,7 @@ btnPlayModel.addEventListener('click', async () => {
   src.onended = () => ctx.close();
 });
 
-// ========================= 연습 녹음: index와 동일한 Start–Stop 방식 =========================
+// ========================= 연습 녹음 =========================
 const btnPracStart = document.getElementById('btn-prac-start');
 const btnPracStop  = document.getElementById('btn-prac-stop');
 
@@ -392,7 +393,7 @@ async function startPracticeRecording(){
   if(pracRecorder) return; // 이미 녹음 중이면 무시
 
   try {
-    await ensureAudioContext(); // 모바일에서 user gesture 후 resume
+    await ensureAudioContext();
     pracStream = await navigator.mediaDevices.getUserMedia({
       audio: {channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:false}
     });
@@ -487,5 +488,70 @@ function stopPracticeRecording(){
 
   pracRecorder.stop();
 }
+
+// ========================= CSV 공유 (모범 + 나의 억양) =========================
+shareBtn.addEventListener('click', async () => {
+  if (!userPoints.length) {
+    alert("먼저 연습 녹음을 한 번 하고 나서 CSV를 보내 주세요.");
+    return;
+  }
+
+  const hopSec   = HOP_MS / 1000;
+  const sentKey   = currentSentKey || "practice";
+  const sentLabel = sentenceDefs[sentKey]?.label || sentKey;
+
+  let csv = "sentence," + sentLabel + "\n";
+  csv += "time_sec,model_f0,user_f0\n";
+
+  const maxLen = Math.max(modelPoints.length, userPoints.length);
+  for (let i = 0; i < maxLen; i++) {
+    const t = (i * hopSec).toFixed(3);
+    const m = (modelPoints[i] && modelPoints[i] > 0) ? modelPoints[i].toFixed(2) : "";
+    const u = (userPoints[i]  && userPoints[i]  > 0) ? userPoints[i].toFixed(2)  : "";
+    csv += `${t},${m},${u}\n`;
+  }
+
+  const ts       = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = `${sentKey}_${ts}.csv`;
+  const blob     = new Blob([csv], { type:"text/csv;charset=utf-8" });
+
+  if (navigator.share) {
+    try {
+      const file = new File([blob], fileName, { type:"text/csv" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "억양 연습 결과",
+          text: "억양 연습 CSV 파일입니다."
+        });
+      } else {
+        await navigator.share({
+          title: "억양 연습 결과",
+          text: "브라우저에서 파일 공유가 완전히 지원되지 않습니다. 그래프 캡처도 함께 보내 주세요."
+        });
+      }
+      return;
+    } catch (e) {
+      if (e.name !== "AbortError") {
+        console.error(e);
+        alert("공유 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      }
+      return;
+    }
+  }
+
+  // 공유 API가 없을 때: 그냥 다운로드
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  alert("CSV 파일이 저장되었습니다. 파일 앱에서 열어 카카오톡으로 보내 주세요.");
+});
 </script>
 </html>
