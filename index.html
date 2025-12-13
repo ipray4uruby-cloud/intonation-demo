@@ -15,12 +15,12 @@
   #status{color:var(--muted)}
 </style>
 
-<h1>🎤 실시간 억양(F0) 곡선 보기</h1>
+<h1>🎤 START–STOP 후 전체 억양(F0) 곡선</h1>
 <div class="row">
   <button id="start">Start</button>
   <button id="stop" disabled>Stop</button>
   <button id="reset" disabled>Reset</button>
-  <!-- ★ 새로 추가: CSV 다운로드 버튼 -->
+  <!-- CSV 다운로드 / 공유 버튼 추가 -->
   <button id="download" disabled>CSV 다운로드</button>
   <label>Floor(Hz) <input id="floor" type="number" value="75" min="40" max="200"></label>
   <label>Ceiling(Hz) <input id="ceil" type="number" value="400" min="200" max="800"></label>
@@ -34,11 +34,10 @@ let mediaStream, mediaRecorder, chunks=[], audioCtx;
 const startBtn = document.getElementById('start');
 const stopBtn  = document.getElementById('stop');
 const resetBtn = document.getElementById('reset');
-const downloadBtn = document.getElementById('download'); // ★ 추가
+const downloadBtn = document.getElementById('download');
 const c = document.getElementById('c'), g = c.getContext('2d');
 
-// ★ 프레임/홉 크기 상수화 (원래 쓰던 값 유지)
-//  - hopMs를 17로 쓰고 싶으면 여기서 HOP_MS = 17 로만 바꿔주면 됨
+// ★ 프레임/홉 크기: 여기서 HOP_MS = 17으로 설정
 const FRAME_MS = 30;
 const HOP_MS   = 17;
 
@@ -55,12 +54,16 @@ function hannWindow(N){ const w=new Float32Array(N); for(let i=0;i<N;i++) w[i]=0
 const ACF_WINDOW = hannWindow(2048);
 
 function f0_from_frame(buf, sr, floor, ceil){
-  // center-clip + AC
   const N = buf.length;
   let mean=0; for(let i=0;i<N;i++) mean += buf[i]; mean/=N;
-  let rms=0; for(let i=0;i<N;i++){ const v=(buf[i]-mean)*ACF_WINDOW[i%ACF_WINDOW.length]; rms+=v*v; buf[i]=v; }
+  let rms=0;
+  for(let i=0;i<N;i++){
+    const v=(buf[i]-mean)*ACF_WINDOW[i%ACF_WINDOW.length];
+    rms+=v*v;
+    buf[i]=v;
+  }
   rms = Math.sqrt(rms/N);
-  if(rms < 0.005) return 0;          // ★ 네가 쓰던 원래 임계값 유지
+  if(rms < 0.005) return 0; // 감도: 원래 값 유지
 
   const minLag = Math.floor(sr/ceil);
   const maxLag = Math.floor(sr/floor);
@@ -70,16 +73,19 @@ function f0_from_frame(buf, sr, floor, ceil){
   let denom0=0; for(let i=0;i<N;i++) denom0 += buf[i]*buf[i];
   for(let lag=minLag; lag<=maxLag; lag++){
     let s=0, denom1=0;
-    for(let i=0;i<N-lag;i++){ const a=buf[i], b=buf[i+lag]; s+=a*b; denom1+=b*b; }
+    for(let i=0;i<N-lag;i++){
+      const a=buf[i], b=buf[i+lag];
+      s+=a*b; denom1+=b*b;
+    }
     const nccf = (denom1>1e-9)? s/Math.sqrt(denom0*denom1) : 0;
     if(nccf > best){ best=nccf; bestLag=lag; }
   }
-  if(bestLag<0 || best<0.3) return 0; // ★ 원래 NCCF 임계값 유지
+  if(bestLag<0 || best<0.3) return 0; // NCCF 임계값도 그대로
 
   // parabolic interpolation around bestLag
   const ac=(lag)=>{
     let s=0; for(let i=0;i<N-lag;i++) s+=buf[i]*buf[i+lag]; return s;
-  }
+  };
   const c1=ac(bestLag-1), c2=ac(bestLag), c3=ac(bestLag+1);
   const denom=(c1-2*c2+c3); let shift=0;
   if(Math.abs(denom)>1e-6) shift=0.5*(c1-c3)/denom;
@@ -99,7 +105,8 @@ function medianSmooth(arr, k=5){
 }
 
 function trackPitch(signal, sr, floor, ceil, frameMs=FRAME_MS, hopMs=HOP_MS){
-  const frame = Math.round(sr*frameMs/1000), hop = Math.round(sr*hopMs/1000);
+  const frame = Math.round(sr*frameMs/1000),
+        hop   = Math.round(sr*hopMs/1000);
   const out=[]; const buf = new Float32Array(frame);
   for(let start=0; start+frame<=signal.length; start+=hop){
     buf.set(signal.subarray(start,start+frame));
@@ -133,18 +140,23 @@ function drawContour(f0s, floor, ceil, color="#0a74da"){
   }
   g.stroke();
 }
-function mapF0(f,fmin,fmax){ const clamped=Math.max(fmin,Math.min(fmax,f)); const r=(clamped-fmin)/(fmax-fmin); return 244 - r*220; }
+
+function mapF0(f,fmin,fmax){
+  const clamped=Math.max(fmin,Math.min(fmax,f));
+  const r=(clamped-fmin)/(fmax-fmin);
+  return 244 - r*220;
+}
 
 // ===== CSV 저장용 전역 변수 =====
-let lastF0s = [];       // 마지막으로 계산된 F0 배열
-let lastFloorHz = null; // 그때 사용한 floor
-let lastCeilHz  = null; // 그때 사용한 ceil
-let lastSmoothK = null; // 그때 사용한 smoothing
+let lastF0s = [];
+let lastFloorHz = null;
+let lastCeilHz  = null;
+let lastSmoothK = null;
 
 // ===== UI flow =====
 startBtn.onclick = async () => {
   try{
-    await ensureAudioContext(); // 모바일에서 user gesture 후 resume
+    await ensureAudioContext();
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: {channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:false}
     });
@@ -161,11 +173,11 @@ startBtn.onclick = async () => {
   mediaRecorder.onstart = ()=> setStatus("녹음 중… 문장을 말하세요.");
   mediaRecorder.start();
 
-  startBtn.disabled = true; 
-  stopBtn.disabled = false; 
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
   resetBtn.disabled = true;
-  downloadBtn.disabled = true;   // 새 녹음 시작 시 CSV 비활성화
-  lastF0s = [];                  // 이전 결과 초기화
+  downloadBtn.disabled = true;
+  lastF0s = [];
   document.getElementById('now').textContent = "F0: -- Hz";
   drawAxes(+floor.value, +ceil.value);
 };
@@ -175,7 +187,6 @@ stopBtn.onclick = async () => {
   if(!mediaRecorder){ return; }
   setStatus("처리 중…(1초 내)");
   mediaRecorder.onstop = async ()=>{
-    // 합치기 → 디코드 → 분석
     const blob = new Blob(chunks);
     chunks.length = 0;
 
@@ -183,18 +194,17 @@ stopBtn.onclick = async () => {
     const ctx = await ensureAudioContext();
     const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
 
-    // 단일 채널 신호 취득 + 정규화
     const ch = audioBuf.numberOfChannels ? audioBuf.getChannelData(0) : new Float32Array(arrayBuf.byteLength/4);
     const signal = new Float32Array(ch.length);
-    let peak = 0; 
-    for(let i=0;i<ch.length;i++){ 
-      const v=Math.max(-1,Math.min(1,ch[i])); 
-      peak=Math.max(peak,Math.abs(v)); 
-      signal[i]=v; 
+    let peak = 0;
+    for(let i=0;i<ch.length;i++){
+      const v=Math.max(-1,Math.min(1,ch[i]));
+      peak=Math.max(peak,Math.abs(v));
+      signal[i]=v;
     }
-    if(peak>0){ 
-      const s=1/peak; 
-      for(let i=0;i<signal.length;i++) signal[i]*=s; 
+    if(peak>0){
+      const s=1/peak;
+      for(let i=0;i<signal.length;i++) signal[i]*=s;
     }
 
     const floorHz = +document.getElementById('floor').value || 75;
@@ -204,15 +214,15 @@ stopBtn.onclick = async () => {
     const f0sRaw  = trackPitch(signal, audioBuf.sampleRate, floorHz, ceilHz, FRAME_MS, HOP_MS);
     const f0s     = medianSmooth(f0sRaw, k);
 
-    // 마지막 추정값 표시
-    const last = f0s.findLast ? (f0s.findLast(v=>v>0)||0) : (function(){ for(let i=f0s.length-1;i>=0;i--) if(f0s[i]>0) return f0s[i]; return 0; })();
+    const last = f0s.findLast
+      ? (f0s.findLast(v=>v>0)||0)
+      : (function(){ for(let i=f0s.length-1;i>=0;i--) if(f0s[i]>0) return f0s[i]; return 0; })();
     document.getElementById('now').textContent = "F0: " + (last? Math.round(last) : "--") + " Hz";
 
     drawContour(f0s, floorHz, ceilHz);
     setStatus("완료. 다시 녹음하려면 Reset → Start");
     resetBtn.disabled = false;
 
-    // ★ CSV 저장용 정보 기록
     lastF0s     = f0s;
     lastFloorHz = floorHz;
     lastCeilHz  = ceilHz;
@@ -227,41 +237,57 @@ resetBtn.onclick = ()=>{
   drawAxes(+floor.value, +ceil.value);
   document.getElementById('now').textContent = "F0: -- Hz";
   setStatus("준비 완료");
-  startBtn.disabled=false; 
-  stopBtn.disabled=true; 
+  startBtn.disabled=false;
+  stopBtn.disabled=true;
   resetBtn.disabled=true;
   downloadBtn.disabled=true;
   lastF0s = [];
 };
 
-// ★ CSV 다운로드 기능
-downloadBtn.onclick = () => {
-  if(!lastF0s || lastF0s.length === 0){
+// ★ CSV 다운로드 + 가능하면 시스템 공유창 열기
+downloadBtn.onclick = async () => {
+  if (!lastF0s || lastF0s.length === 0) {
     alert("먼저 녹음을 하고 Stop을 눌러 곡선을 생성해 주세요.");
     return;
   }
 
   const lines = [];
-  // 메타데이터 한 줄 (파이썬에서 comment='#'로 무시 가능)
   const meta = `# frame_ms=${FRAME_MS}, hop_ms=${HOP_MS}, floor_hz=${lastFloorHz}, ceil_hz=${lastCeilHz}, smooth=${lastSmoothK}`;
   lines.push(meta);
   lines.push("time_sec,f0_hz");
 
-  for(let i=0;i<lastF0s.length;i++){
-    const t  = (i * HOP_MS / 1000).toFixed(3);          // 0.000, 0.017, ...
+  for (let i = 0; i < lastF0s.length; i++) {
+    const t  = (i * HOP_MS / 1000).toFixed(3);
     const f0 = lastF0s[i] > 0 ? lastF0s[i].toFixed(2) : "";
     lines.push(`${t},${f0}`);
   }
 
   const csv = lines.join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const blob = new Blob([csv], { type: "text/csv" });
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `intonation_${ts}.csv`;
+
+  // 1) Web Share API로 공유 시도 (카톡/메일 등)
+  try {
+    const file = new File([blob], filename, { type: "text/csv" });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: "Intonation CSV",
+        text: "웹앱에서 생성한 억양(F0) 데이터입니다.",
+        files: [file]
+      });
+      return; // 공유 성공/취소 후 여기서 종료
+    }
+  } catch (e) {
+    console.warn("공유 기능 사용 불가 또는 취소됨, 다운로드로 대체:", e);
+  }
+
+  // 2) 공유 안 되면 다운로드로 폴백
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-
-  // 파일 이름: intonation_YYYY-MM-DDTHH-MM-SS.csv
-  const ts = new Date().toISOString().replace(/[:.]/g,"-");
   a.href = url;
-  a.download = `intonation_${ts}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
